@@ -243,7 +243,7 @@ class Board:
             | self.group_cells[8]
         )
 
-    def update_shortes(self) -> None:
+    def update_shortest(self) -> None:
         for group in GROUP_ORDER:
             for pos in BITS_LIST[self.group_cells[group]]:
                 cell = CELL_INDEX[group][pos]
@@ -256,7 +256,7 @@ class Board:
 
     def trial_and_error(self) -> None:
         if self.shortest.length > 9:
-            self.update_shortes()
+            self.update_shortest()
 
         cell: int = self.shortest.cell
         cell_candidates = [*self.cell_candidates]
