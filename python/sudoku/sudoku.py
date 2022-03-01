@@ -85,7 +85,6 @@ CELL_GROUP_POS = tuple(get_cellgps(cell) for cell in range(81))
 Shortest = namedtuple("Shortest", ["length", "cell"])
 
 EMPTY_SHORTEST = Shortest(length=10, cell=-1)
-GROUP_ORDER = (22, 23, 25, 21, 19, 20, 26, 24, 18)
 
 
 @dataclass
@@ -107,7 +106,8 @@ class Board:
             changed_groups=0,
             shortest=EMPTY_SHORTEST,
         )
-        for cell, value in enumerate(cell_values):
+        for cell in range(81):
+            value = cell_values[cell]
             cellgps = CELL_GROUP_POS[cell]
             if value == 0:
                 board.group_cells[cellgps[0].group] |= BIT9[cellgps[0].pos]
@@ -115,7 +115,7 @@ class Board:
                 board.group_cells[cellgps[2].group] |= BIT9[cellgps[2].pos]
                 board.cell_candidates[cell] = 511
             else:
-                candidates = 511 & BIT9[value - 1]
+                candidates = BIT9[value - 1]
                 board.group_negatives[cellgps[0].group] |= candidates
                 board.group_negatives[cellgps[1].group] |= candidates
                 board.group_negatives[cellgps[2].group] |= candidates
@@ -150,7 +150,9 @@ class Board:
         self.cell_candidates[cell] &= ~candidates
         candidates = self.cell_candidates[cell]
         self.changed_groups |= (
-            511 & 1 << cellgps[0].group | 1 << cellgps[1].group | 1 << cellgps[2].group
+            (511 & 1 << cellgps[0].group)
+            | (511 & 1 << cellgps[1].group)
+            | (511 & 1 << cellgps[2].group)
         )
 
         candidate_count = count1s(candidates)
@@ -242,7 +244,7 @@ class Board:
         )
 
     def update_shortest(self) -> None:
-        for group in GROUP_ORDER:
+        for group in (22, 23, 25, 21, 19, 20, 26, 24, 18):
             for pos in BITS_LISTS[self.group_cells[group]]:
                 cell = CELL_INDEXES[group][pos]
                 length = count1s(self.cell_candidates[cell])
@@ -264,8 +266,8 @@ class Board:
         candidates = cell_candidates[cell]
         length = count1s(candidates)
 
-        for index, candidate in enumerate(BITS_LISTS[candidates]):
-            set_candidates = BIT9[candidate]
+        for index in range(length):
+            set_candidates = BIT9[BITS_LISTS[candidates][index]]
             self.cell_candidates[cell] = set_candidates
             self.is_sudoku = True
             self.shortest = EMPTY_SHORTEST
