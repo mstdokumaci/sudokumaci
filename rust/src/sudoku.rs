@@ -372,7 +372,10 @@ impl Board {
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
 
-        for candidate in BITS_LISTS[self.cell_candidates[cell]].iter() {
+        let candidates = cell_candidates[cell];
+        let length = candidates.count_ones() as usize;
+
+        for (index, candidate) in BITS_LISTS[candidates].iter().enumerate() {
             let set_candidates = BIT9[*candidate];
             self.cell_candidates[cell] = set_candidates;
             self.shortest = EMPTY_SHORTEST;
@@ -389,9 +392,15 @@ impl Board {
                 }
             }
 
-            self.cell_candidates = cell_candidates.clone();
-            self.group_cells = group_cells.clone();
-            self.group_negatives = group_negatives.clone();
+            if index + 2 == length {
+                self.cell_candidates = cell_candidates;
+                self.group_cells = group_cells;
+                self.group_negatives = group_negatives;
+            } else if index + 1 != length {
+                self.cell_candidates = cell_candidates.clone();
+                self.group_cells = group_cells.clone();
+                self.group_negatives = group_negatives.clone();
+            }
             self.is_sudoku = true;
             self.shortest = EMPTY_SHORTEST;
         }
