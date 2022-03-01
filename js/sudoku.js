@@ -273,6 +273,7 @@ class Board {
     for (let i = 0; i < length; i++) {
       const set_candidates = BIT9[bits_list[i]];
       this.cell_candidates[cell] = set_candidates;
+      this.is_sudoku = true;
       this.shortest = EMTPY_SHORTEST;
       this.set_value(CELL_GROUP_POS[cell], set_candidates);
       this.eliminate_group_negatives();
@@ -287,16 +288,15 @@ class Board {
         }
       }
 
-      if (length + 2 == length) {
+      if (i + 2 == length) {
         this.cell_candidates = cell_candidates;
         this.group_cells = group_cells;
         this.group_negatives = group_negatives;
-      } else if (length + 1 != length) {
+      } else if (i + 1 != length) {
         this.cell_candidates = cell_candidates.slice();
         this.group_cells = group_cells.slice();
         this.group_negatives = group_negatives.slice();
       }
-      this.is_sudoku = true;
       this.shortest = EMTPY_SHORTEST;
     }
   }
