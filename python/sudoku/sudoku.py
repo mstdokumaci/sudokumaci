@@ -15,7 +15,7 @@ def get_cel_index(group: int, pos: int) -> int:
         return 0
 
 
-CELL_INDEX = tuple(
+CELL_INDEXES = tuple(
     tuple(get_cel_index(group, pos) for pos in range(9)) for group in range(27)
 )
 
@@ -31,7 +31,7 @@ BIT9 = [
     0b100000000,
 ]
 
-BITS_LIST = tuple(
+BITS_LISTS = tuple(
     tuple(index for index, bit in enumerate(BIT9) if bits & bit != 0)
     for bits in range(512)
 )
@@ -62,7 +62,7 @@ def get_subbits_list(super_bits: int) -> tuple[int, ...]:
     )
 
 
-SUBBITS_LIST = tuple(get_subbits_list(super_bits) for super_bits in range(512))
+SUBBITS_LISTS = tuple(get_subbits_list(super_bits) for super_bits in range(512))
 
 
 GroupPos = namedtuple("GroupPos", ["group", "pos"])
@@ -122,13 +122,13 @@ class Board:
                 board.cell_candidates[cell] = candidates
 
         board.eliminate_group_negatives()
-        board.eliminate_exclusive_combinations()
+        board.eliminate_exclusive_subsets()
         assert board.is_sudoku
         if not board.is_solved:
             board.trial_and_error()
         assert board.is_sudoku
         return "".join(
-            str(BITS_LIST[candidates][0] + 1) if count1s(candidates) == 1 else "0"
+            str(BITS_LISTS[candidates][0] + 1) if count1s(candidates) == 1 else "0"
             for candidates in board.cell_candidates
         )
 
@@ -172,8 +172,8 @@ class Board:
         while negatives:
             negatives = False
             for group in range(9):
-                for pos in BITS_LIST[self.group_cells[group]]:
-                    cell = CELL_INDEX[group][pos]
+                for pos in BITS_LISTS[self.group_cells[group]]:
+                    cell = CELL_INDEXES[group][pos]
                     cellgps = CELL_GROUP_POS[cell]
                     negatives |= self.remove_candidates_from_cell(
                         cell,
@@ -183,33 +183,31 @@ class Board:
                         | self.group_negatives[cellgps[2].group],
                     )
 
-    def eliminate_exclusive_combinations_from_group(
+    def eliminate_exclusive_subsets_from_group(
         self, gbits: int, cell_indexes: tuple[int, ...]
     ) -> bool:
-        for subbits in SUBBITS_LIST[gbits]:
+        for subbits in SUBBITS_LISTS[gbits]:
             union = 0
-            for pos in BITS_LIST[subbits]:
+            for pos in BITS_LISTS[subbits]:
                 union |= self.cell_candidates[cell_indexes[pos]]
             if count1s(union) == count1s(subbits):
                 compbits = gbits & ~subbits
                 negatives = False
-                for pos in BITS_LIST[compbits]:
+                for pos in BITS_LISTS[compbits]:
                     cell = cell_indexes[pos]
                     negatives = self.remove_candidates_from_cell(
                         cell, CELL_GROUP_POS[cell], union
                     )
                 return (
                     negatives
-                    | self.eliminate_exclusive_combinations_from_group(
-                        subbits, cell_indexes
-                    )
-                    | self.eliminate_exclusive_combinations_from_group(
+                    | self.eliminate_exclusive_subsets_from_group(subbits, cell_indexes)
+                    | self.eliminate_exclusive_subsets_from_group(
                         compbits, cell_indexes
                     )
                 )
         return False
 
-    def eliminate_exclusive_combinations(self) -> None:
+    def eliminate_exclusive_subsets(self) -> None:
         while True:
             negatives = False
             i = 0
@@ -219,8 +217,8 @@ class Board:
                     changed_groups >>= 1
                     i += 1
                     continue
-                negatives |= self.eliminate_exclusive_combinations_from_group(
-                    self.group_cells[i], CELL_INDEX[i]
+                negatives |= self.eliminate_exclusive_subsets_from_group(
+                    self.group_cells[i], CELL_INDEXES[i]
                 )
                 changed_groups >>= 1
                 i += 1
@@ -245,8 +243,8 @@ class Board:
 
     def update_shortest(self) -> None:
         for group in GROUP_ORDER:
-            for pos in BITS_LIST[self.group_cells[group]]:
-                cell = CELL_INDEX[group][pos]
+            for pos in BITS_LISTS[self.group_cells[group]]:
+                cell = CELL_INDEXES[group][pos]
                 length = count1s(self.cell_candidates[cell])
                 if length == 2:
                     self.shortest = Shortest(length=2, cell=cell)
@@ -263,13 +261,17 @@ class Board:
         group_cells = [*self.group_cells]
         group_negatives = [*self.group_negatives]
 
-        for candidate in BITS_LIST[cell_candidates[cell]]:
+        candidates = cell_candidates[cell]
+        length = count1s(candidates)
+
+        for index, candidate in enumerate(BITS_LISTS[candidates]):
             set_candidates = BIT9[candidate]
             self.cell_candidates[cell] = set_candidates
+            self.is_sudoku = True
             self.shortest = EMPTY_SHORTEST
             self.set_value(CELL_GROUP_POS[cell], set_candidates)
             self.eliminate_group_negatives()
-            self.eliminate_exclusive_combinations()
+            self.eliminate_exclusive_subsets()
 
             if self.is_solved:
                 return
@@ -278,10 +280,14 @@ class Board:
                 if self.is_solved:
                     return
 
-            self.cell_candidates = [*cell_candidates]
-            self.group_cells = [*group_cells]
-            self.group_negatives = [*group_negatives]
-            self.is_sudoku = True
+            if index + 2 == length:
+                self.cell_candidates = cell_candidates
+                self.group_cells = group_cells
+                self.group_negatives = group_negatives
+            elif index + 1 != length:
+                self.cell_candidates = [*cell_candidates]
+                self.group_cells = [*group_cells]
+                self.group_negatives = [*group_negatives]
             self.shortest = EMPTY_SHORTEST
 
 
@@ -301,7 +307,7 @@ def print_board(board: Board) -> None:
             "║"
             + "║".join(
                 "│".join(
-                    "".join(str(value + 1) for value in BITS_LIST[cell]).center(9)
+                    "".join(str(value + 1) for value in BITS_LISTS[cell]).center(9)
                     for cell in cell_candidates
                 )
                 for cell_candidates in cell_groups
