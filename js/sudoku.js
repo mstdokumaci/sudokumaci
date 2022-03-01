@@ -8,7 +8,7 @@ const BIT9 = [
   0b100000000,
 ];
 
-const CELL_INDEX = TWENTY_SEVEN.map((gindex) =>
+const CELL_INDEXES = TWENTY_SEVEN.map((gindex) =>
   BIT9.map((_, pos) => {
     const group = gindex % 9;
     switch ((gindex / 9) | 0) {
@@ -27,7 +27,7 @@ const CELL_INDEX = TWENTY_SEVEN.map((gindex) =>
   })
 );
 
-const BITS_LIST = [...Array(512)].map((_, bits) => {
+const BITS_LISTS = [...Array(512)].map((_, bits) => {
   const list = [];
   for (let i = 0; i < 9; i++) {
     if (bits & BIT9[i]) {
@@ -52,7 +52,7 @@ function is_valid_subset(super_length, super_bits, sub_bits) {
   return sub_length < super_length && sub_length > 1;
 }
 
-const SUBBITS_LIST = [...Array(512)]
+const SUBBITS_LISTS = [...Array(512)]
   .map((_, super_bits) => count1s(super_bits))
   .map((super_length, super_bits) =>
     [...Array(super_bits)]
@@ -99,7 +99,7 @@ class Board {
     });
     this.shortest = EMTPY_SHORTEST;
     this.eliminate_group_negatives();
-    this.eliminate_exclusive_combinations();
+    this.eliminate_exclusive_subsets();
     assert(this.is_sudoku);
     if (!this.is_solved()) {
       this.trial_and_error();
@@ -107,7 +107,7 @@ class Board {
     assert(this.is_sudoku);
     return this.cell_candidates
       .map((candidates) => {
-        const bits_list = BITS_LIST[candidates];
+        const bits_list = BITS_LISTS[candidates];
         return bits_list.length == 1 ? bits_list[0] + 1 : '0';
       })
       .join('');
@@ -155,11 +155,11 @@ class Board {
     while (negatives) {
       negatives = false;
       for (let group = 0; group < 9; group++) {
-        const bits_list = BITS_LIST[this.group_cells[group]];
+        const bits_list = BITS_LISTS[this.group_cells[group]];
         const length = bits_list.length;
         for (let i = 0; i < length; i++) {
           const pos = bits_list[i];
-          const cell = CELL_INDEX[group][pos];
+          const cell = CELL_INDEXES[group][pos];
           const cellgps = CELL_GROUP_POS[cell];
           negatives |= this.remove_candidates_from_cell(
             cell,
@@ -172,12 +172,12 @@ class Board {
       }
     }
   }
-  eliminate_exclusive_combinations_from_group(gbits, cell_indexes) {
-    const subbits_list = SUBBITS_LIST[gbits];
+  eliminate_exclusive_subsets_from_group(gbits, cell_indexes) {
+    const subbits_list = SUBBITS_LISTS[gbits];
     const length = subbits_list.length;
     for (let i = 0; i < length; i++) {
       const subbits = subbits_list[i];
-      const bits_list = BITS_LIST[subbits];
+      const bits_list = BITS_LISTS[subbits];
       const length = bits_list.length;
       let union = 0;
       for (let i = 0; i < length; i++) {
@@ -185,7 +185,7 @@ class Board {
       }
       if (count1s(union) == bits_list.length) {
         const compbits = gbits & ~subbits;
-        const bits_list = BITS_LIST[compbits];
+        const bits_list = BITS_LISTS[compbits];
         const length = bits_list.length;
         let negatives = false;
         for (let i = 0; i < length; i++) {
@@ -198,20 +198,14 @@ class Board {
         }
         return (
           negatives |
-          this.eliminate_exclusive_combinations_from_group(
-            subbits,
-            cell_indexes
-          ) |
-          this.eliminate_exclusive_combinations_from_group(
-            compbits,
-            cell_indexes
-          )
+          this.eliminate_exclusive_subsets_from_group(subbits, cell_indexes) |
+          this.eliminate_exclusive_subsets_from_group(compbits, cell_indexes)
         );
       }
     }
     return false;
   }
-  eliminate_exclusive_combinations() {
+  eliminate_exclusive_subsets() {
     while (true) {
       let negatives = false;
       for (
@@ -222,9 +216,9 @@ class Board {
         if ((changed_groups & 1) == 0) {
           continue;
         }
-        negatives |= this.eliminate_exclusive_combinations_from_group(
+        negatives |= this.eliminate_exclusive_subsets_from_group(
           this.group_cells[i],
-          CELL_INDEX[i]
+          CELL_INDEXES[i]
         );
       }
       if (negatives) {
@@ -250,10 +244,10 @@ class Board {
   update_shortest() {
     for (let i = 0; i < 9; i++) {
       const group = GROUP_ORDER[i];
-      const bits_list = BITS_LIST[this.group_cells[group]];
+      const bits_list = BITS_LISTS[this.group_cells[group]];
       const length = bits_list.length;
       for (let i = 0; i < length; i++) {
-        const cell = CELL_INDEX[group][bits_list[i]];
+        const cell = CELL_INDEXES[group][bits_list[i]];
         const cell_count = count1s(this.cell_candidates[cell]);
         if (cell_count == 2) {
           this.shortest = [2, cell];
@@ -274,7 +268,7 @@ class Board {
     const group_cells = this.group_cells.slice();
     const group_negatives = this.group_negatives.slice();
 
-    const bits_list = BITS_LIST[cell_candidates[cell]];
+    const bits_list = BITS_LISTS[cell_candidates[cell]];
     const length = bits_list.length;
     for (let i = 0; i < length; i++) {
       const set_candidates = BIT9[bits_list[i]];
@@ -282,7 +276,7 @@ class Board {
       this.shortest = EMTPY_SHORTEST;
       this.set_value(CELL_GROUP_POS[cell], set_candidates);
       this.eliminate_group_negatives();
-      this.eliminate_exclusive_combinations();
+      this.eliminate_exclusive_subsets();
 
       if (this.is_solved()) {
         return;
@@ -293,9 +287,15 @@ class Board {
         }
       }
 
-      this.cell_candidates = cell_candidates.slice();
-      this.group_cells = group_cells.slice();
-      this.group_negatives = group_negatives.slice();
+      if (length + 2 == length) {
+        this.cell_candidates = cell_candidates;
+        this.group_cells = group_cells;
+        this.group_negatives = group_negatives;
+      } else if (length + 1 != length) {
+        this.cell_candidates = cell_candidates.slice();
+        this.group_cells = group_cells.slice();
+        this.group_negatives = group_negatives.slice();
+      }
       this.is_sudoku = true;
       this.shortest = EMTPY_SHORTEST;
     }
@@ -339,7 +339,7 @@ const print_board = (board) => {
           .map((cell_candidates) =>
             cell_candidates
               .map((candidates) => {
-                const numbers = BITS_LIST[candidates]
+                const numbers = BITS_LISTS[candidates]
                   .map((num) => num + 1)
                   .join('');
                 return numbers
