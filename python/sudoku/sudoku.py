@@ -165,7 +165,7 @@ class Board:
                 self.shortest = EMPTY_SHORTEST
             return self.set_value(cellgps, candidates)
         elif candidate_count < self.shortest.length:
-            self.shortest = Shortest(length=2, cell=cell)
+            self.shortest = Shortest(length=candidate_count, cell=cell)
 
         return False
 
