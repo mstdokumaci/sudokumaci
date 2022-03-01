@@ -24,7 +24,7 @@ const fn get_cell_indexes() -> [[usize; 9]; 27] {
     map
 }
 
-const CELL_INDEX: [[usize; 9]; 27] = get_cell_indexes();
+const CELL_INDEXES: [[usize; 9]; 27] = get_cell_indexes();
 
 const BIT9: [usize; 9] = [
     0b1,
@@ -38,7 +38,7 @@ const BIT9: [usize; 9] = [
     0b100000000,
 ];
 
-fn get_bits_list_for_bits(bits: usize) -> Vec<usize> {
+fn get_bits_list(bits: usize) -> Vec<usize> {
     let mut list: Vec<usize> = vec![];
     let mut bit: usize = 0;
     while bit < 9 {
@@ -50,19 +50,19 @@ fn get_bits_list_for_bits(bits: usize) -> Vec<usize> {
     list
 }
 
-fn get_bits_list() -> [Vec<usize>; 512] {
+fn get_bits_lists() -> [Vec<usize>; 512] {
     const INIT: Vec<usize> = vec![];
     let mut bits_list: [Vec<usize>; 512] = [INIT; 512];
     let mut bits = 0;
     while bits < 512 {
-        bits_list[bits] = get_bits_list_for_bits(bits);
+        bits_list[bits] = get_bits_list(bits);
         bits += 1;
     }
     bits_list
 }
 
 lazy_static! {
-    static ref BITS_LIST: [Vec<usize>; 512] = get_bits_list();
+    static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
 }
 
 struct Biterator {
@@ -93,7 +93,7 @@ impl Iterator for Biterator {
     }
 }
 
-fn get_subbits(super_bits: usize) -> Vec<usize> {
+fn get_subbits_list(super_bits: usize) -> Vec<usize> {
     let mut subbits_list: Vec<usize> = vec![];
     let super_length = super_bits.count_ones() as usize;
     let mut sub_bits = 0;
@@ -107,19 +107,19 @@ fn get_subbits(super_bits: usize) -> Vec<usize> {
     subbits_list
 }
 
-fn get_subbits_list() -> [Vec<usize>; 512] {
+fn get_subbits_lists() -> [Vec<usize>; 512] {
     const INIT: Vec<usize> = vec![];
     let mut subbits_list: [Vec<usize>; 512] = [INIT; 512];
     let mut bits = 0;
     while bits < 512 {
-        subbits_list[bits] = get_subbits(bits);
+        subbits_list[bits] = get_subbits_list(bits);
         bits += 1;
     }
     subbits_list
 }
 
 lazy_static! {
-    static ref SUBBITS_LIST: [Vec<usize>; 512] = get_subbits_list();
+    static ref SUBBITS_LISTS: [Vec<usize>; 512] = get_subbits_lists();
 }
 
 #[derive(Copy, Clone)]
@@ -207,7 +207,7 @@ impl Board {
             }
         }
         board.eliminate_group_negatives();
-        board.eliminate_exclusive_combinations();
+        board.eliminate_exclusive_subsets();
         assert!(board.is_sudoku);
         if !board.is_solved() {
             board.trial_and_error();
@@ -270,8 +270,8 @@ impl Board {
         loop {
             let mut negatives = false;
             for group in 0..9 {
-                for pos in BITS_LIST[self.group_cells[group]].iter() {
-                    let cell = CELL_INDEX.get(group).unwrap().get(*pos).unwrap();
+                for pos in BITS_LISTS[self.group_cells[group]].iter() {
+                    let cell = CELL_INDEXES.get(group).unwrap().get(*pos).unwrap();
                     let cellgps = CELL_GROUP_POS.get(*cell).unwrap();
                     let mut candidates = 0;
                     for cellgp in cellgps.iter() {
@@ -285,20 +285,20 @@ impl Board {
             }
         }
     }
-    fn eliminate_exclusive_combinations_from_group(
+    fn eliminate_exclusive_subsets_from_group(
         &mut self,
         gbits: usize,
         cell_indexes: &[usize; 9],
     ) -> bool {
-        for subbits in SUBBITS_LIST[gbits].iter() {
+        for subbits in SUBBITS_LISTS[gbits].iter() {
             let mut union: usize = 0;
-            for pos in BITS_LIST[*subbits].iter() {
+            for pos in BITS_LISTS[*subbits].iter() {
                 union |= self.cell_candidates[*cell_indexes.get(*pos).unwrap()];
             }
             if union.count_ones() == subbits.count_ones() {
                 let compbits = gbits & !(*subbits);
                 let mut negatives = false;
-                for pos in BITS_LIST[compbits].iter() {
+                for pos in BITS_LISTS[compbits].iter() {
                     let cell = cell_indexes.get(*pos).unwrap();
                     negatives |= self.remove_candidates_from_cell(
                         cell,
@@ -307,19 +307,19 @@ impl Board {
                     );
                 }
                 return negatives
-                    | self.eliminate_exclusive_combinations_from_group(*subbits, cell_indexes)
-                    | self.eliminate_exclusive_combinations_from_group(compbits, cell_indexes);
+                    | self.eliminate_exclusive_subsets_from_group(*subbits, cell_indexes)
+                    | self.eliminate_exclusive_subsets_from_group(compbits, cell_indexes);
             }
         }
         false
     }
-    fn eliminate_exclusive_combinations(&mut self) {
+    fn eliminate_exclusive_subsets(&mut self) {
         loop {
             let mut negatives = false;
             for group in Biterator::new(self.changed_groups) {
-                negatives |= self.eliminate_exclusive_combinations_from_group(
+                negatives |= self.eliminate_exclusive_subsets_from_group(
                     self.group_cells[group],
-                    CELL_INDEX.get(group).unwrap(),
+                    CELL_INDEXES.get(group).unwrap(),
                 );
             }
             if negatives {
@@ -344,8 +344,8 @@ impl Board {
     }
     fn update_shortest(&mut self) {
         for group in [22, 23, 25, 21, 19, 20, 26, 24, 18].iter() {
-            for pos in BITS_LIST[self.group_cells[*group]].iter() {
-                let cell = CELL_INDEX[*group][*pos];
+            for pos in BITS_LISTS[self.group_cells[*group]].iter() {
+                let cell = CELL_INDEXES[*group][*pos];
                 let length = self.cell_candidates[cell].count_ones() as usize;
                 if length == 2 {
                     self.shortest = Shortest {
@@ -372,13 +372,13 @@ impl Board {
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
 
-        for candidate in BITS_LIST[self.cell_candidates[cell]].iter() {
+        for candidate in BITS_LISTS[self.cell_candidates[cell]].iter() {
             let set_candidates = BIT9[*candidate];
             self.cell_candidates[cell] = set_candidates;
             self.shortest = EMPTY_SHORTEST;
             self.set_value(CELL_GROUP_POS.get(cell).unwrap(), set_candidates);
             self.eliminate_group_negatives();
-            self.eliminate_exclusive_combinations();
+            self.eliminate_exclusive_subsets();
 
             if self.is_solved() {
                 return;
@@ -415,7 +415,7 @@ fn print_board(board: &Board) {
             let cell = cell_count + line_count * 9;
             print!(
                 "{: ^9}",
-                BITS_LIST[board.cell_candidates[cell]]
+                BITS_LISTS[board.cell_candidates[cell]]
                     .iter()
                     .map(|x| (x + 1).to_string())
                     .collect::<Vec<String>>()
