@@ -95,11 +95,11 @@ impl Iterator for Biterator {
 
 fn get_subbits_list(super_bits: usize) -> Vec<usize> {
     let mut subbits_list: Vec<usize> = vec![];
-    let super_length = super_bits.count_ones() as usize;
+    let super_length = super_bits.count_ones();
     let mut sub_bits = 0;
     while sub_bits < super_bits {
         sub_bits += 1;
-        let sub_length = sub_bits.count_ones() as usize;
+        let sub_length = sub_bits.count_ones();
         if sub_bits & !super_bits == 0 && sub_length < super_length && sub_length > 1 {
             subbits_list.push(sub_bits);
         }
@@ -128,11 +128,11 @@ struct GroupPos {
     pos: usize,
 }
 
-const fn get_gps(index: usize) -> [GroupPos; 3] {
-    let row = index / 9 | 0;
-    let col = index % 9;
+const fn get_gps(cell: usize) -> [GroupPos; 3] {
+    let row = cell / 9 | 0;
+    let col = cell % 9;
     let sqr = (row / 3 | 0) * 3 + (col / 3 | 0);
-    let pos = row % 3 * 3 + col % 3;
+    let sqp = row % 3 * 3 + col % 3;
     [
         GroupPos {
             group: row,
@@ -144,22 +144,22 @@ const fn get_gps(index: usize) -> [GroupPos; 3] {
         },
         GroupPos {
             group: sqr + 18,
-            pos: pos,
+            pos: sqp,
         },
     ]
 }
 
-const fn get_cell_gps() -> [[GroupPos; 3]; 81] {
-    let mut map = [[GroupPos { group: 0, pos: 0 }; 3]; 81];
+const fn get_cellgps() -> [[GroupPos; 3]; 81] {
+    let mut cellgps = [[GroupPos { group: 0, pos: 0 }; 3]; 81];
     let mut index: usize = 0;
     while index < 81 {
-        map[index] = get_gps(index);
+        cellgps[index] = get_gps(index);
         index += 1;
     }
-    map
+    cellgps
 }
 
-const CELL_GROUP_POS: [[GroupPos; 3]; 81] = get_cell_gps();
+const CELL_GROUP_POS: [[GroupPos; 3]; 81] = get_cellgps();
 
 struct Shortest {
     length: usize,
@@ -228,7 +228,7 @@ impl Board {
             self.is_sudoku &= self.group_negatives[cellgp.group] & candidates == 0;
             self.group_negatives[cellgp.group] |= candidates;
         }
-        return self.is_sudoku;
+        self.is_sudoku
     }
     fn remove_candidates_from_cell(
         &mut self,
@@ -242,7 +242,7 @@ impl Board {
         let candidate_count = candidates.count_ones() as usize;
         if candidate_count == 0 {
             self.is_sudoku = false;
-            return self.is_sudoku;
+            return false;
         } else if candidate_count == 1 {
             if self.shortest.cell == *cell {
                 self.shortest = EMPTY_SHORTEST;
@@ -274,17 +274,15 @@ impl Board {
     fn eliminate_group_negatives(&mut self) {
         self.changed_groups = 0;
 
-        loop {
-            let mut negatives = false;
+        let mut negatives = true;
+        while self.is_sudoku & negatives {
+            negatives = false;
             for group in 0..9 {
                 for pos in BITS_LISTS[self.group_cells[group]].iter() {
                     let cell = CELL_INDEXES.get(group).unwrap().get(*pos).unwrap();
                     negatives |=
                         self.remove_negatives_from_cell(cell, CELL_GROUP_POS.get(*cell).unwrap());
                 }
-            }
-            if !(self.is_sudoku & negatives) {
-                return;
             }
         }
     }
@@ -315,7 +313,7 @@ impl Board {
             for pos in BITS_LISTS[*subbits].iter() {
                 union |= self.cell_candidates[*cell_indexes.get(*pos).unwrap()];
             }
-            if union.count_ones() == subbits.count_ones() {
+            if (union as u16).count_ones() == (*subbits as u16).count_ones() {
                 let compbits = gbits & !(*subbits);
                 let mut negatives = false;
                 for pos in BITS_LISTS[compbits].iter() {
@@ -387,15 +385,14 @@ impl Board {
             self.update_shortest()
         }
 
-        let cell = self.shortest.cell;
         let cell_candidates = self.cell_candidates.clone();
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
 
-        let candidates = cell_candidates[cell];
-        let length = candidates.count_ones() as usize;
+        let cell = self.shortest.cell;
+        let length = self.shortest.length;
 
-        for (index, candidate) in BITS_LISTS[candidates].iter().enumerate() {
+        for (index, candidate) in BITS_LISTS[cell_candidates[cell]].iter().enumerate() {
             let set_candidates = BIT9[*candidate];
             self.cell_candidates[cell] = set_candidates;
             self.is_sudoku = true;
