@@ -173,14 +173,16 @@ class Board:
             return False
 
         self.changed_groups |= (
-            (511 & 1 << cellgps[0].group)
-            | (511 & 1 << cellgps[1].group)
-            | (511 & 1 << cellgps[2].group)
+            (511 & (1 << cellgps[0].group))
+            | (511 & (1 << cellgps[1].group))
+            | (511 & (1 << cellgps[2].group))
         )
 
         return self.remove_candidates_from_cell(cell, cellgps, candidates)
 
     def eliminate_group_negatives(self) -> None:
+        self.changed_groups = 0
+
         negatives = True
         while self.is_sudoku & negatives:
             negatives = False
@@ -234,18 +236,17 @@ class Board:
     def eliminate_exclusive_subsets(self) -> None:
         while True:
             negatives = False
-            i = 0
+            group = 0
             changed_groups = self.changed_groups
-            while changed_groups > 0:
-                if not changed_groups & 1:
+            while changed_groups:
+                while not changed_groups & 1:
                     changed_groups >>= 1
-                    i += 1
-                    continue
+                    group += 1
                 negatives |= self.eliminate_exclusive_subsets_from_group(
-                    self.group_cells[i], CELL_INDEXES[i]
+                    self.group_cells[group], CELL_INDEXES[group]
                 )
                 changed_groups >>= 1
-                i += 1
+                group += 1
             if negatives:
                 self.eliminate_group_negatives()
             else:
@@ -280,16 +281,16 @@ class Board:
         if self.shortest.length > 9:
             self.update_shortest()
 
-        cell: int = self.shortest.cell
         cell_candidates = [*self.cell_candidates]
         group_cells = [*self.group_cells]
         group_negatives = [*self.group_negatives]
 
-        candidates = cell_candidates[cell]
-        length = count1s(candidates)
+        length = self.shortest.length
+        cell = self.shortest.cell
 
+        bits_list = BITS_LISTS[cell_candidates[cell]]
         for index in range(length):
-            set_candidates = BIT9[BITS_LISTS[candidates][index]]
+            set_candidates = BIT9[bits_list[index]]
             self.cell_candidates[cell] = set_candidates
             self.is_sudoku = True
             self.shortest = EMPTY_SHORTEST

@@ -65,11 +65,11 @@ const CELL_GROUP_POS = [...Array(81)].map((_, index) => {
   const row = (index / 9) | 0;
   const col = index % 9;
   const sqr = ((row / 3) | 0) * 3 + ((col / 3) | 0);
-  const pos = (row % 3) * 3 + (col % 3);
+  const sqp = (row % 3) * 3 + (col % 3);
   return [
     { group: row, pos: col },
     { group: col + 9, pos: row },
-    { group: sqr + 18, pos: pos },
+    { group: sqr + 18, pos: sqp },
   ];
 });
 
@@ -226,16 +226,17 @@ class Board {
     while (true) {
       let negatives = false;
       for (
-        let changed_groups = this.changed_groups, i = 0;
+        let changed_groups = this.changed_groups, group = 0;
         changed_groups > 0;
-        changed_groups >>= 1, i++
+        changed_groups >>= 1, group++
       ) {
-        if ((changed_groups & 1) == 0) {
-          continue;
+        while ((changed_groups & 1) == 0) {
+          changed_groups >>= 1;
+          group++;
         }
         negatives |= this.eliminate_exclusive_subsets_from_group(
-          this.group_cells[i],
-          CELL_INDEXES[i]
+          this.group_cells[group],
+          CELL_INDEXES[group]
         );
       }
       if (negatives) {
@@ -265,12 +266,12 @@ class Board {
       const length = bits_list.length;
       for (let i = 0; i < length; i++) {
         const cell = CELL_INDEXES[group][bits_list[i]];
-        const cell_count = count1s(this.cell_candidates[cell]);
-        if (cell_count == 2) {
+        const length = count1s(this.cell_candidates[cell]);
+        if (length == 2) {
           this.shortest = [2, cell];
           return;
-        } else if (cell_count < this.shortest[0]) {
-          this.shortest = [cell_count, cell];
+        } else if (length < this.shortest[0]) {
+          this.shortest = [length, cell];
         }
       }
     }
@@ -280,16 +281,16 @@ class Board {
       this.update_shortest();
     }
 
-    const cell = this.shortest[1];
     const cell_candidates = this.cell_candidates.slice();
     const group_cells = this.group_cells.slice();
     const group_negatives = this.group_negatives.slice();
 
+    const [length, cell] = this.shortest;
+
     const bits_list = BITS_LISTS[cell_candidates[cell]];
-    const length = bits_list.length;
-    for (let i = 0; i < length; i++) {
-      const set_candidates = BIT9[bits_list[i]];
-      this.cell_candidates[cell] = set_candidates;
+    for (let index = 0; index < length; index++) {
+      const set_candidates = (this.cell_candidates[cell] =
+        BIT9[bits_list[index]]);
       this.is_sudoku = true;
       this.shortest = EMTPY_SHORTEST;
       this.set_value(CELL_GROUP_POS[cell], set_candidates);
@@ -307,11 +308,11 @@ class Board {
         }
       }
 
-      if (i + 2 == length) {
+      if (index + 2 == length) {
         this.cell_candidates = cell_candidates;
         this.group_cells = group_cells;
         this.group_negatives = group_negatives;
-      } else if (i + 1 != length) {
+      } else if (index + 1 != length) {
         this.cell_candidates = cell_candidates.slice();
         this.group_cells = group_cells.slice();
         this.group_negatives = group_negatives.slice();
