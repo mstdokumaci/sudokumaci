@@ -163,12 +163,12 @@ const CELL_GROUP_POS: [[GroupPos; 3]; 81] = get_cell_gps();
 
 struct Shortest {
     length: usize,
-    index: usize,
+    cell: usize,
 }
 
 const EMPTY_SHORTEST: Shortest = Shortest {
     length: 10,
-    index: 81,
+    cell: 81,
 };
 
 struct Board {
@@ -252,14 +252,14 @@ impl Board {
             self.is_sudoku = false;
             return self.is_sudoku;
         } else if candidate_count == 1 {
-            if self.shortest.index == *cell {
+            if self.shortest.cell == *cell {
                 self.shortest = EMPTY_SHORTEST;
             }
             return self.set_value(&cellgps, candidates);
         } else if candidate_count < self.shortest.length {
             self.shortest = Shortest {
                 length: candidate_count,
-                index: *cell,
+                cell: *cell,
             };
         }
         false
@@ -349,14 +349,14 @@ impl Board {
                 let length = self.cell_candidates[cell].count_ones() as usize;
                 if length == 2 {
                     self.shortest = Shortest {
-                        length: length,
-                        index: cell,
+                        length: 2,
+                        cell: cell,
                     };
                     return;
                 } else if length < self.shortest.length {
                     self.shortest = Shortest {
                         length: length,
-                        index: cell,
+                        cell: cell,
                     };
                 }
             }
@@ -367,7 +367,7 @@ impl Board {
             self.update_shortest()
         }
 
-        let cell = self.shortest.index;
+        let cell = self.shortest.cell;
         let cell_candidates = self.cell_candidates.clone();
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
