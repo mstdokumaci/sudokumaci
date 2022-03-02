@@ -237,15 +237,8 @@ impl Board {
         cellgps: &[GroupPos; 3],
         candidates: &usize,
     ) -> bool {
-        if (self.cell_candidates[*cell] & *candidates) == 0 {
-            return false;
-        }
-
         self.cell_candidates[*cell] &= !*candidates;
         let candidates = self.cell_candidates[*cell];
-        for cellgp in cellgps.iter() {
-            self.changed_groups |= 1 << cellgp.group;
-        }
 
         let candidate_count = candidates.count_ones() as usize;
         if candidate_count == 0 {
@@ -255,7 +248,7 @@ impl Board {
             if self.shortest.cell == *cell {
                 self.shortest = EMPTY_SHORTEST;
             }
-            return self.set_value(&cellgps, candidates);
+            return self.set_value(cellgps, candidates);
         } else if candidate_count < self.shortest.length {
             self.shortest = Shortest {
                 length: candidate_count,
@@ -263,6 +256,21 @@ impl Board {
             };
         }
         false
+    }
+    fn remove_negatives_from_cell(&mut self, cell: &usize, cellgps: &[GroupPos; 3]) -> bool {
+        let candidates = self.group_negatives[cellgps[0].group]
+            | self.group_negatives[cellgps[1].group]
+            | self.group_negatives[cellgps[2].group];
+
+        if (self.cell_candidates[*cell] & candidates) == 0 {
+            return false;
+        }
+
+        for cellgp in cellgps.iter() {
+            self.changed_groups |= 1 << cellgp.group;
+        }
+
+        return self.remove_candidates_from_cell(cell, cellgps, &candidates);
     }
     fn eliminate_group_negatives(&mut self) {
         self.changed_groups = 0;
@@ -272,18 +280,31 @@ impl Board {
             for group in 0..9 {
                 for pos in BITS_LISTS[self.group_cells[group]].iter() {
                     let cell = CELL_INDEXES.get(group).unwrap().get(*pos).unwrap();
-                    let cellgps = CELL_GROUP_POS.get(*cell).unwrap();
-                    let mut candidates = 0;
-                    for cellgp in cellgps.iter() {
-                        candidates |= self.group_negatives[cellgp.group];
-                    }
-                    negatives |= self.remove_candidates_from_cell(cell, cellgps, &candidates);
+                    negatives |=
+                        self.remove_negatives_from_cell(cell, CELL_GROUP_POS.get(*cell).unwrap());
                 }
             }
-            if !negatives {
+            if !(self.is_sudoku & negatives) {
                 return;
             }
         }
+    }
+    fn remove_union_from_cell(
+        &mut self,
+        cell: &usize,
+        cellgps: &[GroupPos; 3],
+        union: &usize,
+    ) -> bool {
+        if (self.cell_candidates[*cell] & *union) == 0 {
+            return false;
+        }
+
+        let candidates = *union
+            | self.group_negatives[cellgps[0].group]
+            | self.group_negatives[cellgps[1].group]
+            | self.group_negatives[cellgps[2].group];
+
+        return self.remove_candidates_from_cell(cell, cellgps, &candidates);
     }
     fn eliminate_exclusive_subsets_from_group(
         &mut self,
@@ -300,7 +321,7 @@ impl Board {
                 let mut negatives = false;
                 for pos in BITS_LISTS[compbits].iter() {
                     let cell = cell_indexes.get(*pos).unwrap();
-                    negatives |= self.remove_candidates_from_cell(
+                    negatives |= self.remove_union_from_cell(
                         cell,
                         CELL_GROUP_POS.get(*cell).unwrap(),
                         &union,
@@ -382,7 +403,9 @@ impl Board {
             self.shortest = EMPTY_SHORTEST;
             self.set_value(CELL_GROUP_POS.get(cell).unwrap(), set_candidates);
             self.eliminate_group_negatives();
-            self.eliminate_exclusive_subsets();
+            if self.is_sudoku {
+                self.eliminate_exclusive_subsets();
+            }
 
             if self.is_solved() {
                 return;
