@@ -144,19 +144,10 @@ class Board:
     def remove_candidates_from_cell(
         self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos], candidates: int
     ) -> bool:
-        if not self.cell_candidates[cell] & candidates:
-            return False
-
         self.cell_candidates[cell] &= ~candidates
         candidates = self.cell_candidates[cell]
-        self.changed_groups |= (
-            (511 & 1 << cellgps[0].group)
-            | (511 & 1 << cellgps[1].group)
-            | (511 & 1 << cellgps[2].group)
-        )
 
         candidate_count = count1s(candidates)
-
         if candidate_count == 0:
             self.is_sudoku = False
             return False
@@ -169,21 +160,52 @@ class Board:
 
         return False
 
+    def remove_negatives_from_cell(
+        self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos]
+    ) -> bool:
+        candidates = (
+            self.group_negatives[cellgps[0].group]
+            | self.group_negatives[cellgps[1].group]
+            | self.group_negatives[cellgps[2].group]
+        )
+
+        if not self.cell_candidates[cell] & candidates:
+            return False
+
+        self.changed_groups |= (
+            (511 & 1 << cellgps[0].group)
+            | (511 & 1 << cellgps[1].group)
+            | (511 & 1 << cellgps[2].group)
+        )
+
+        return self.remove_candidates_from_cell(cell, cellgps, candidates)
+
     def eliminate_group_negatives(self) -> None:
         negatives = True
-        while negatives:
+        while self.is_sudoku & negatives:
             negatives = False
             for group in range(9):
                 for pos in BITS_LISTS[self.group_cells[group]]:
                     cell = CELL_INDEXES[group][pos]
-                    cellgps = CELL_GROUP_POS[cell]
-                    negatives |= self.remove_candidates_from_cell(
+                    negatives |= self.remove_negatives_from_cell(
                         cell,
-                        cellgps,
-                        self.group_negatives[cellgps[0].group]
-                        | self.group_negatives[cellgps[1].group]
-                        | self.group_negatives[cellgps[2].group],
+                        CELL_GROUP_POS[cell],
                     )
+
+    def remove_union_from_cell(
+        self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos], union: int
+    ) -> bool:
+        if not self.cell_candidates[cell] & union:
+            return False
+
+        candidates = (
+            union
+            | self.group_negatives[cellgps[0].group]
+            | self.group_negatives[cellgps[1].group]
+            | self.group_negatives[cellgps[2].group]
+        )
+
+        return self.remove_candidates_from_cell(cell, cellgps, candidates)
 
     def eliminate_exclusive_subsets_from_group(
         self, gbits: int, cell_indexes: tuple[int, ...]
@@ -197,7 +219,7 @@ class Board:
                 negatives = False
                 for pos in BITS_LISTS[compbits]:
                     cell = cell_indexes[pos]
-                    negatives = self.remove_candidates_from_cell(
+                    negatives = self.remove_union_from_cell(
                         cell, CELL_GROUP_POS[cell], union
                     )
                 return (
@@ -273,7 +295,8 @@ class Board:
             self.shortest = EMPTY_SHORTEST
             self.set_value(CELL_GROUP_POS[cell], set_candidates)
             self.eliminate_group_negatives()
-            self.eliminate_exclusive_subsets()
+            if self.is_sudoku:
+                self.eliminate_exclusive_subsets()
 
             if self.is_solved:
                 return
