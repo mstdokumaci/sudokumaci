@@ -73,7 +73,7 @@ const CELL_GROUP_POS = [...Array(81)].map((_, index) => {
   ];
 });
 
-const EMTPY_SHORTEST = [10, -1];
+const EMTPY_SHORTEST = [10, 81];
 const EMPTY_27 = Array(27).fill(0);
 const GROUP_ORDER = [22, 23, 25, 21, 19, 20, 26, 24, 18];
 
