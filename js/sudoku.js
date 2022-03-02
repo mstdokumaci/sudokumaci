@@ -122,16 +122,7 @@ class Board {
     return this.is_sudoku;
   }
   remove_candidates_from_cell(cell, cellgps, candidates) {
-    if ((this.cell_candidates[cell] & candidates) == 0) {
-      return false;
-    }
-
     candidates = this.cell_candidates[cell] &= ~candidates;
-    this.changed_groups |=
-      (1 << cellgps[0].group) |
-      (1 << cellgps[1].group) |
-      (1 << cellgps[2].group);
-
     const candidate_count = count1s(candidates);
     if (candidate_count == 0) {
       this.is_sudoku = false;
@@ -148,11 +139,28 @@ class Board {
 
     return false;
   }
+  remove_negatives_from_cell(cell, cellgps) {
+    const candidates =
+      this.group_negatives[cellgps[0].group] |
+      this.group_negatives[cellgps[1].group] |
+      this.group_negatives[cellgps[2].group];
+
+    if ((this.cell_candidates[cell] & candidates) == 0) {
+      return false;
+    }
+
+    this.changed_groups |=
+      (1 << cellgps[0].group) |
+      (1 << cellgps[1].group) |
+      (1 << cellgps[2].group);
+
+    return this.remove_candidates_from_cell(cell, cellgps, candidates);
+  }
   eliminate_group_negatives() {
     this.changed_groups = 0;
 
     let negatives = true;
-    while (negatives) {
+    while (this.is_sudoku & negatives) {
       negatives = false;
       for (let group = 0; group < 9; group++) {
         const bits_list = BITS_LISTS[this.group_cells[group]];
@@ -160,17 +168,26 @@ class Board {
         for (let i = 0; i < length; i++) {
           const pos = bits_list[i];
           const cell = CELL_INDEXES[group][pos];
-          const cellgps = CELL_GROUP_POS[cell];
-          negatives |= this.remove_candidates_from_cell(
+          negatives |= this.remove_negatives_from_cell(
             cell,
-            cellgps,
-            this.group_negatives[cellgps[0].group] |
-              this.group_negatives[cellgps[1].group] |
-              this.group_negatives[cellgps[2].group]
+            CELL_GROUP_POS[cell]
           );
         }
       }
     }
+  }
+  remove_union_from_cell(cell, cellgps, union) {
+    if ((this.cell_candidates[cell] & union) == 0) {
+      return false;
+    }
+
+    const candidates =
+      union |
+      this.group_negatives[cellgps[0].group] |
+      this.group_negatives[cellgps[1].group] |
+      this.group_negatives[cellgps[2].group];
+
+    return this.remove_candidates_from_cell(cell, cellgps, candidates);
   }
   eliminate_exclusive_subsets_from_group(gbits, cell_indexes) {
     const subbits_list = SUBBITS_LISTS[gbits];
@@ -190,7 +207,7 @@ class Board {
         let negatives = false;
         for (let i = 0; i < length; i++) {
           const cell = cell_indexes[bits_list[i]];
-          negatives |= this.remove_candidates_from_cell(
+          negatives |= this.remove_union_from_cell(
             cell,
             CELL_GROUP_POS[cell],
             union
@@ -277,7 +294,9 @@ class Board {
       this.shortest = EMTPY_SHORTEST;
       this.set_value(CELL_GROUP_POS[cell], set_candidates);
       this.eliminate_group_negatives();
-      this.eliminate_exclusive_subsets();
+      if (this.is_sudoku) {
+        this.eliminate_exclusive_subsets();
+      }
 
       if (this.is_solved()) {
         return;
