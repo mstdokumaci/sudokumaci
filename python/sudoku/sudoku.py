@@ -84,7 +84,7 @@ CELL_GROUP_POS = tuple(get_cellgps(cell) for cell in range(81))
 
 Shortest = namedtuple("Shortest", ["length", "cell"])
 
-EMPTY_SHORTEST = Shortest(length=10, cell=-1)
+EMPTY_SHORTEST = Shortest(length=10, cell=81)
 
 
 @dataclass
