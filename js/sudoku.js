@@ -288,12 +288,13 @@ class Board {
     const [length, cell] = this.shortest;
 
     const bits_list = BITS_LISTS[cell_candidates[cell]];
+    const cellgps = CELL_GROUP_POS[cell];
     for (let index = 0; index < length; index++) {
       const set_candidates = (this.cell_candidates[cell] =
         BIT9[bits_list[index]]);
       this.is_sudoku = true;
       this.shortest = EMTPY_SHORTEST;
-      this.set_value(CELL_GROUP_POS[cell], set_candidates);
+      this.set_value(cellgps, set_candidates);
       this.eliminate_group_negatives();
       if (this.is_sudoku) {
         this.eliminate_exclusive_subsets();

@@ -286,15 +286,16 @@ class Board:
         group_negatives = [*self.group_negatives]
 
         length = self.shortest.length
-        cell = self.shortest.cell
+        cell: int = self.shortest.cell
 
         bits_list = BITS_LISTS[cell_candidates[cell]]
+        cellgps = CELL_GROUP_POS[cell]
         for index in range(length):
             set_candidates = BIT9[bits_list[index]]
             self.cell_candidates[cell] = set_candidates
             self.is_sudoku = True
             self.shortest = EMPTY_SHORTEST
-            self.set_value(CELL_GROUP_POS[cell], set_candidates)
+            self.set_value(cellgps, set_candidates)
             self.eliminate_group_negatives()
             if self.is_sudoku:
                 self.eliminate_exclusive_subsets()
