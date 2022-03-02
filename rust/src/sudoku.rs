@@ -389,8 +389,8 @@ impl Board {
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
 
-        let cell = self.shortest.cell;
         let length = self.shortest.length;
+        let cell = self.shortest.cell;
 
         for (index, candidate) in BITS_LISTS[cell_candidates[cell]].iter().enumerate() {
             let set_candidates = BIT9[*candidate];
