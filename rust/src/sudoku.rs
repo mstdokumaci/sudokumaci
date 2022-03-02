@@ -217,11 +217,10 @@ impl Board {
             .cell_candidates
             .iter()
             .map(|candidate| match candidate.count_ones() {
-                1 => (candidate.trailing_zeros() + 1).to_string(),
-                _ => String::from("0"),
+                1 => char::from_digit(candidate.trailing_zeros() + 1, 10).unwrap(),
+                _ => '0',
             })
-            .collect::<Vec<String>>()
-            .join("")
+            .collect()
     }
     fn set_value(&mut self, cellgps: &[GroupPos; 3], candidates: usize) -> bool {
         for cellgp in cellgps.iter() {
