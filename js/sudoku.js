@@ -316,7 +316,6 @@ class Board {
         this.group_cells = group_cells.slice();
         this.group_negatives = group_negatives.slice();
       }
-      this.shortest = EMTPY_SHORTEST;
     }
   }
 }

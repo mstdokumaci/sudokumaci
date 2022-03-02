@@ -313,7 +313,6 @@ class Board:
                 self.cell_candidates = [*cell_candidates]
                 self.group_cells = [*group_cells]
                 self.group_negatives = [*group_negatives]
-            self.shortest = EMPTY_SHORTEST
 
 
 first_line = "╔" + "╦".join(["╤".join(["═" * 9] * 3)] * 3) + "╗"

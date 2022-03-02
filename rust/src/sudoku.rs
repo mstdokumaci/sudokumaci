@@ -40,12 +40,12 @@ const BIT9: [usize; 9] = [
 
 fn get_bits_list(bits: usize) -> Vec<usize> {
     let mut list: Vec<usize> = vec![];
-    let mut bit: usize = 0;
-    while bit < 9 {
-        if bits & BIT9[bit] != 0 {
-            list.push(bit);
+    let mut index: usize = 0;
+    while index < 9 {
+        if bits & BIT9[index] != 0 {
+            list.push(index);
         }
-        bit += 1;
+        index += 1;
     }
     list
 }
@@ -425,7 +425,6 @@ impl Board {
                 self.group_cells = group_cells.clone();
                 self.group_negatives = group_negatives.clone();
             }
-            self.shortest = EMPTY_SHORTEST;
         }
     }
 }
