@@ -14,7 +14,7 @@ Implemented in Python, NodeJS, and Rust. Rust performs best thanks to threading 
 ## High-Level Strategy
 
 - Find a list of possible candidates for each empty cell by eliminating clues in prefilled cells from every other cell in their groups.
-- In every group, find exclusive subset combinations and eliminate the union of these cells from other cells in the group. For example, a row with no clues and there can be found 6 cells in this row that hosts only candidates from 1 to 6. In this case, we can eliminate numbers from 1 to 6 from 3 other cells in the group.
+- In every group, find exclusive subset combinations and eliminate the union of these cells from other cells in the group. For example, a row with no clues and there can be found 6 cells in this row that hosts only candidates from 1 to 6. In this case, we can eliminate numbers from 1 to 6 from the other 3 cells in the group.
 - If these eliminations lead to revealing exact values of some cells, repeat the above eliminations until nothing is left to be revealed.
 - Find a cell with the least candidates and try placing each candidate as a value and solving the puzzle with that assumption.
 - If the puzzle becomes unsolvable by the assumption, try another candidate. If the puzzle is valid sudoku, one of the candidates must work.
