@@ -39,15 +39,11 @@ const BIT9: [usize; 9] = [
 ];
 
 fn get_bits_list(bits: usize) -> Vec<usize> {
-    let mut list: Vec<usize> = vec![];
-    let mut index: usize = 0;
-    while index < 9 {
-        if bits & BIT9[index] != 0 {
-            list.push(index);
-        }
-        index += 1;
-    }
-    list
+    BIT9.iter()
+        .enumerate()
+        .filter(|&bit| bits & bit.1 != 0)
+        .map(|x| x.0)
+        .collect::<Vec<usize>>()
 }
 
 fn get_bits_lists() -> [Vec<usize>; 512] {
