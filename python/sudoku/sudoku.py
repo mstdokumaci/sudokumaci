@@ -144,7 +144,7 @@ class Board:
     def remove_candidates_from_cell(
         self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos], candidates: int
     ) -> bool:
-        self.cell_candidates[cell] &= ~candidates
+        self.cell_candidates[cell] ^= candidates
         candidates = self.cell_candidates[cell]
 
         candidate_count = count1s(candidates)
@@ -163,13 +163,13 @@ class Board:
     def remove_negatives_from_cell(
         self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos]
     ) -> bool:
-        candidates = (
+        candidates = self.cell_candidates[cell] & (
             self.group_negatives[cellgps[0].group]
             | self.group_negatives[cellgps[1].group]
             | self.group_negatives[cellgps[2].group]
         )
 
-        if not self.cell_candidates[cell] & candidates:
+        if not candidates:
             return False
 
         self.changed_groups |= (
@@ -200,7 +200,7 @@ class Board:
         if not self.cell_candidates[cell] & union:
             return False
 
-        candidates = (
+        candidates = self.cell_candidates[cell] & (
             union
             | self.group_negatives[cellgps[0].group]
             | self.group_negatives[cellgps[1].group]
@@ -217,7 +217,7 @@ class Board:
             for pos in BITS_LISTS[subbits]:
                 union |= self.cell_candidates[cell_indexes[pos]]
             if count1s(union) == count1s(subbits):
-                compbits = gbits & ~subbits
+                compbits = gbits ^ subbits
                 negatives = False
                 for pos in BITS_LISTS[compbits]:
                     cell = cell_indexes[pos]
@@ -239,9 +239,47 @@ class Board:
             group = 0
             changed_groups = self.changed_groups
             while changed_groups:
-                while not changed_groups & 1:
-                    changed_groups >>= 1
-                    group += 1
+                trailing_zeros = (
+                    32,
+                    0,
+                    1,
+                    26,
+                    2,
+                    23,
+                    27,
+                    0,
+                    3,
+                    16,
+                    24,
+                    30,
+                    28,
+                    11,
+                    0,
+                    13,
+                    4,
+                    7,
+                    17,
+                    0,
+                    25,
+                    22,
+                    31,
+                    15,
+                    29,
+                    10,
+                    12,
+                    6,
+                    0,
+                    21,
+                    14,
+                    9,
+                    5,
+                    20,
+                    8,
+                    19,
+                    18,
+                )[(changed_groups & -changed_groups) % 37]
+                changed_groups >>= trailing_zeros
+                group += trailing_zeros
                 negatives |= self.eliminate_exclusive_subsets_from_group(
                     self.group_cells[group], CELL_INDEXES[group]
                 )
