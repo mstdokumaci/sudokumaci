@@ -281,12 +281,11 @@ class Board:
                     19,
                     18,
                 )[(changed_groups & -changed_groups) % 37]
-                changed_groups >>= trailing_zeros
+                changed_groups >>= trailing_zeros + 1
                 group += trailing_zeros
                 negatives |= self.eliminate_exclusive_subsets_from_group(
                     self.group_cells[group], CELL_INDEXES[group]
                 )
-                changed_groups >>= 1
                 group += 1
             if negatives:
                 self.eliminate_group_negatives()
