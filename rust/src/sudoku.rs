@@ -124,12 +124,14 @@ struct GroupPos {
     pos: usize,
 }
 
-const fn get_gps(cell: usize) -> [GroupPos; 3] {
+type GPS = (GroupPos, GroupPos, GroupPos);
+
+const fn get_gps(cell: usize) -> GPS {
     let row = cell / 9 | 0;
     let col = cell % 9;
     let sqr = (row / 3 | 0) * 3 + (col / 3 | 0);
     let sqp = row % 3 * 3 + col % 3;
-    [
+    (
         GroupPos {
             group: row,
             pos: col,
@@ -142,11 +144,15 @@ const fn get_gps(cell: usize) -> [GroupPos; 3] {
             group: sqr + 18,
             pos: sqp,
         },
-    ]
+    )
 }
 
-const fn get_cellgps() -> [[GroupPos; 3]; 81] {
-    let mut cellgps = [[GroupPos { group: 0, pos: 0 }; 3]; 81];
+const fn get_cellgps() -> [GPS; 81] {
+    let mut cellgps = [(
+        GroupPos { group: 0, pos: 0 },
+        GroupPos { group: 0, pos: 0 },
+        GroupPos { group: 0, pos: 0 },
+    ); 81];
     let mut index: usize = 0;
     while index < 81 {
         cellgps[index] = get_gps(index);
@@ -155,7 +161,7 @@ const fn get_cellgps() -> [[GroupPos; 3]; 81] {
     cellgps
 }
 
-const CELL_GROUP_POS: [[GroupPos; 3]; 81] = get_cellgps();
+const CELL_GROUP_POS: [GPS; 81] = get_cellgps();
 
 struct Shortest {
     length: usize,
@@ -190,15 +196,15 @@ impl Board {
             let value = cell_values[cell];
             let cellgps = CELL_GROUP_POS[cell];
             if value == 0 {
-                for cellgp in cellgps.iter() {
-                    board.group_cells[cellgp.group] |= BIT9[cellgp.pos];
-                }
+                board.group_cells[cellgps.0.group] |= BIT9[cellgps.0.pos];
+                board.group_cells[cellgps.1.group] |= BIT9[cellgps.1.pos];
+                board.group_cells[cellgps.2.group] |= BIT9[cellgps.2.pos];
                 board.cell_candidates[cell] = 511;
             } else {
                 let candidates = BIT9[value - 1];
-                for cellgp in cellgps.iter() {
-                    board.group_negatives[cellgp.group] |= candidates;
-                }
+                board.group_negatives[cellgps.0.group] |= candidates;
+                board.group_negatives[cellgps.1.group] |= candidates;
+                board.group_negatives[cellgps.2.group] |= candidates;
                 board.cell_candidates[cell] = candidates;
             }
         }
@@ -218,18 +224,28 @@ impl Board {
             })
             .collect()
     }
-    fn set_value(&mut self, cellgps: &[GroupPos; 3], candidates: usize) -> bool {
-        for cellgp in cellgps.iter() {
-            self.group_cells[cellgp.group] &= !BIT9[cellgp.pos];
-            self.is_sudoku &= self.group_negatives[cellgp.group] & candidates == 0;
-            self.group_negatives[cellgp.group] |= candidates;
+    fn set_value(&mut self, cellgps: &GPS, candidates: usize) -> bool {
+        self.group_cells[cellgps.0.group] &= !BIT9[cellgps.0.pos];
+        self.group_cells[cellgps.1.group] &= !BIT9[cellgps.1.pos];
+        self.group_cells[cellgps.2.group] &= !BIT9[cellgps.2.pos];
+        if (self.group_negatives[cellgps.0.group]
+            | self.group_negatives[cellgps.1.group]
+            | self.group_negatives[cellgps.2.group])
+            & candidates
+            != 0
+        {
+            self.is_sudoku = false;
+            return false;
         }
-        self.is_sudoku
+        self.group_negatives[cellgps.0.group] |= candidates;
+        self.group_negatives[cellgps.1.group] |= candidates;
+        self.group_negatives[cellgps.2.group] |= candidates;
+        return true;
     }
     fn remove_candidates_from_cell(
         &mut self,
         cell: &usize,
-        cellgps: &[GroupPos; 3],
+        cellgps: &GPS,
         candidates: &usize,
     ) -> bool {
         self.cell_candidates[*cell] ^= *candidates;
@@ -252,19 +268,18 @@ impl Board {
         }
         false
     }
-    fn remove_negatives_from_cell(&mut self, cell: &usize, cellgps: &[GroupPos; 3]) -> bool {
+    fn remove_negatives_from_cell(&mut self, cell: &usize, cellgps: &GPS) -> bool {
         let candidates = self.cell_candidates[*cell]
-            & (self.group_negatives[cellgps[0].group]
-                | self.group_negatives[cellgps[1].group]
-                | self.group_negatives[cellgps[2].group]);
+            & (self.group_negatives[cellgps.0.group]
+                | self.group_negatives[cellgps.1.group]
+                | self.group_negatives[cellgps.2.group]);
 
         if candidates == 0 {
             return false;
         }
 
-        for cellgp in cellgps.iter() {
-            self.changed_groups |= 1 << cellgp.group;
-        }
+        self.changed_groups |=
+            (1 << cellgps.0.group) | (1 << cellgps.1.group) | (1 << cellgps.2.group);
 
         return self.remove_candidates_from_cell(cell, cellgps, &candidates);
     }
@@ -283,21 +298,16 @@ impl Board {
             }
         }
     }
-    fn remove_union_from_cell(
-        &mut self,
-        cell: &usize,
-        cellgps: &[GroupPos; 3],
-        union: &usize,
-    ) -> bool {
+    fn remove_union_from_cell(&mut self, cell: &usize, cellgps: &GPS, union: &usize) -> bool {
         if (self.cell_candidates[*cell] & *union) == 0 {
             return false;
         }
 
         let candidates = self.cell_candidates[*cell]
             & (*union
-                | self.group_negatives[cellgps[0].group]
-                | self.group_negatives[cellgps[1].group]
-                | self.group_negatives[cellgps[2].group]);
+                | self.group_negatives[cellgps.0.group]
+                | self.group_negatives[cellgps.1.group]
+                | self.group_negatives[cellgps.2.group]);
 
         return self.remove_candidates_from_cell(cell, cellgps, &candidates);
     }
