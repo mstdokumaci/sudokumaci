@@ -65,18 +65,18 @@ def get_subbits_list(super_bits: int) -> tuple[int, ...]:
 SUBBITS_LISTS = tuple(get_subbits_list(super_bits) for super_bits in range(512))
 
 
-GroupPos = namedtuple("GroupPos", ["group", "pos"])
+GroupPos = namedtuple(
+    "GroupPos", ["group0", "pos0", "group1", "pos1", "group2", "pos2"]
+)
 
 
-def get_cellgps(cell: int) -> tuple[GroupPos, GroupPos, GroupPos]:
+def get_cellgps(cell: int) -> GroupPos:
     row = cell // 9
     col = cell % 9
     sqr = (row // 3) * 3 + (col // 3)
     sqp = (row % 3) * 3 + (col % 3)
-    return (
-        GroupPos(group=row, pos=col),
-        GroupPos(group=col + 9, pos=row),
-        GroupPos(group=sqr + 18, pos=sqp),
+    return GroupPos(
+        group0=row, pos0=col, group1=col + 9, pos1=row, group2=sqr + 18, pos2=sqp
     )
 
 
@@ -110,15 +110,15 @@ class Board:
             value = cell_values[cell]
             cellgps = CELL_GROUP_POS[cell]
             if value == 0:
-                board.group_cells[cellgps[0].group] |= BIT9[cellgps[0].pos]
-                board.group_cells[cellgps[1].group] |= BIT9[cellgps[1].pos]
-                board.group_cells[cellgps[2].group] |= BIT9[cellgps[2].pos]
+                board.group_cells[cellgps.group0] |= BIT9[cellgps.pos0]
+                board.group_cells[cellgps.group1] |= BIT9[cellgps.pos1]
+                board.group_cells[cellgps.group2] |= BIT9[cellgps.pos2]
                 board.cell_candidates[cell] = 511
             else:
                 candidates = BIT9[value - 1]
-                board.group_negatives[cellgps[0].group] |= candidates
-                board.group_negatives[cellgps[1].group] |= candidates
-                board.group_negatives[cellgps[2].group] |= candidates
+                board.group_negatives[cellgps.group0] |= candidates
+                board.group_negatives[cellgps.group1] |= candidates
+                board.group_negatives[cellgps.group2] |= candidates
                 board.cell_candidates[cell] = candidates
 
         board.eliminate_group_negatives()
@@ -132,17 +132,24 @@ class Board:
             for candidates in board.cell_candidates
         )
 
-    def set_value(
-        self, cellgps: tuple[GroupPos, GroupPos, GroupPos], candidates: int
-    ) -> bool:
-        for cellgp in cellgps:
-            self.group_cells[cellgp.group] &= ~BIT9[cellgp.pos]
-            self.is_sudoku &= (self.group_negatives[cellgp.group] & candidates) == 0
-            self.group_negatives[cellgp.group] |= candidates
-        return self.is_sudoku
+    def set_value(self, cellgps: GroupPos, candidates: int) -> bool:
+        self.group_cells[cellgps.group0] &= ~BIT9[cellgps.pos0]
+        self.group_cells[cellgps.group1] &= ~BIT9[cellgps.pos1]
+        self.group_cells[cellgps.group2] &= ~BIT9[cellgps.pos2]
+        if (
+            self.group_negatives[cellgps.group0]
+            | self.group_negatives[cellgps.group1]
+            | self.group_negatives[cellgps.group2]
+        ) & candidates:
+            self.is_sudoku = False
+            return False
+        self.group_negatives[cellgps.group0] |= candidates
+        self.group_negatives[cellgps.group1] |= candidates
+        self.group_negatives[cellgps.group2] |= candidates
+        return True
 
     def remove_candidates_from_cell(
-        self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos], candidates: int
+        self, cell: int, cellgps: GroupPos, candidates: int
     ) -> bool:
         self.cell_candidates[cell] ^= candidates
         candidates = self.cell_candidates[cell]
@@ -160,22 +167,20 @@ class Board:
 
         return False
 
-    def remove_negatives_from_cell(
-        self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos]
-    ) -> bool:
+    def remove_negatives_from_cell(self, cell: int, cellgps: GroupPos) -> bool:
         candidates = self.cell_candidates[cell] & (
-            self.group_negatives[cellgps[0].group]
-            | self.group_negatives[cellgps[1].group]
-            | self.group_negatives[cellgps[2].group]
+            self.group_negatives[cellgps.group0]
+            | self.group_negatives[cellgps.group1]
+            | self.group_negatives[cellgps.group2]
         )
 
         if not candidates:
             return False
 
         self.changed_groups |= (
-            (511 & (1 << cellgps[0].group))
-            | (511 & (1 << cellgps[1].group))
-            | (511 & (1 << cellgps[2].group))
+            (511 & (1 << cellgps.group0))
+            | (511 & (1 << cellgps.group1))
+            | (511 & (1 << cellgps.group2))
         )
 
         return self.remove_candidates_from_cell(cell, cellgps, candidates)
@@ -194,17 +199,15 @@ class Board:
                         CELL_GROUP_POS[cell],
                     )
 
-    def remove_union_from_cell(
-        self, cell: int, cellgps: tuple[GroupPos, GroupPos, GroupPos], union: int
-    ) -> bool:
+    def remove_union_from_cell(self, cell: int, cellgps: GroupPos, union: int) -> bool:
         if not self.cell_candidates[cell] & union:
             return False
 
         candidates = self.cell_candidates[cell] & (
             union
-            | self.group_negatives[cellgps[0].group]
-            | self.group_negatives[cellgps[1].group]
-            | self.group_negatives[cellgps[2].group]
+            | self.group_negatives[cellgps.group0]
+            | self.group_negatives[cellgps.group1]
+            | self.group_negatives[cellgps.group2]
         )
 
         return self.remove_candidates_from_cell(cell, cellgps, candidates)
