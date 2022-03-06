@@ -61,34 +61,6 @@ lazy_static! {
     static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
 }
 
-struct Biterator {
-    bits: usize,
-    index: usize,
-}
-
-impl Biterator {
-    fn new(bits: usize) -> Biterator {
-        Biterator { bits, index: 0 }
-    }
-}
-
-impl Iterator for Biterator {
-    type Item = usize;
-
-    fn next(&mut self) -> Option<usize> {
-        while self.bits & 1 == 0 {
-            if self.bits == 0 {
-                return None;
-            }
-            self.bits >>= 1;
-            self.index += 1;
-        }
-        self.bits >>= 1;
-        self.index += 1;
-        Some(self.index - 1)
-    }
-}
-
 fn get_subbits_list(super_bits: usize) -> Vec<usize> {
     let mut subbits_list: Vec<usize> = vec![];
     let super_length = super_bits.count_ones();
@@ -342,11 +314,17 @@ impl Board {
     fn eliminate_exclusive_subsets(&mut self) {
         loop {
             let mut negatives = false;
-            for group in Biterator::new(self.changed_groups) {
+            let mut changed_groups = self.changed_groups;
+            let mut group = 0;
+            while changed_groups != 0 {
+                let trailing_zeros = changed_groups.trailing_zeros() as usize;
+                changed_groups >>= trailing_zeros + 1;
+                group += trailing_zeros;
                 negatives |= self.eliminate_exclusive_subsets_from_group(
                     self.group_cells[group],
                     CELL_INDEXES.get(group).unwrap(),
                 );
+                group += 1;
             }
             if negatives {
                 self.eliminate_group_negatives();
