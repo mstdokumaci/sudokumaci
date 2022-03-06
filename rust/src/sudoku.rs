@@ -232,7 +232,7 @@ impl Board {
         cellgps: &[GroupPos; 3],
         candidates: &usize,
     ) -> bool {
-        self.cell_candidates[*cell] &= !*candidates;
+        self.cell_candidates[*cell] ^= *candidates;
         let candidates = self.cell_candidates[*cell];
 
         let candidate_count = candidates.count_ones() as usize;
@@ -253,11 +253,12 @@ impl Board {
         false
     }
     fn remove_negatives_from_cell(&mut self, cell: &usize, cellgps: &[GroupPos; 3]) -> bool {
-        let candidates = self.group_negatives[cellgps[0].group]
-            | self.group_negatives[cellgps[1].group]
-            | self.group_negatives[cellgps[2].group];
+        let candidates = self.cell_candidates[*cell]
+            & (self.group_negatives[cellgps[0].group]
+                | self.group_negatives[cellgps[1].group]
+                | self.group_negatives[cellgps[2].group]);
 
-        if (self.cell_candidates[*cell] & candidates) == 0 {
+        if candidates == 0 {
             return false;
         }
 
@@ -292,10 +293,11 @@ impl Board {
             return false;
         }
 
-        let candidates = *union
-            | self.group_negatives[cellgps[0].group]
-            | self.group_negatives[cellgps[1].group]
-            | self.group_negatives[cellgps[2].group];
+        let candidates = self.cell_candidates[*cell]
+            & (*union
+                | self.group_negatives[cellgps[0].group]
+                | self.group_negatives[cellgps[1].group]
+                | self.group_negatives[cellgps[2].group]);
 
         return self.remove_candidates_from_cell(cell, cellgps, &candidates);
     }
@@ -310,7 +312,7 @@ impl Board {
                 union |= self.cell_candidates[*cell_indexes.get(*pos).unwrap()];
             }
             if (union as u16).count_ones() == (*subbits as u16).count_ones() {
-                let compbits = gbits & !(*subbits);
+                let compbits = gbits ^ *subbits;
                 let mut negatives = false;
                 for pos in BITS_LISTS[compbits].iter() {
                     let cell = cell_indexes.get(*pos).unwrap();
