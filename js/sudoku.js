@@ -75,7 +75,6 @@ const CELL_GROUP_POS = [...Array(81)].map((_, index) => {
 
 const EMTPY_SHORTEST = [10, 81];
 const EMPTY_27 = Array(27).fill(0);
-const GROUP_ORDER = [22, 23, 25, 21, 19, 20, 26, 24, 18];
 
 class Board {
   new(cell_values) {
@@ -122,7 +121,7 @@ class Board {
     return this.is_sudoku;
   }
   remove_candidates_from_cell(cell, cellgps, candidates) {
-    candidates = this.cell_candidates[cell] &= ~candidates;
+    candidates = this.cell_candidates[cell] ^= candidates;
     const candidate_count = count1s(candidates);
     if (candidate_count == 0) {
       this.is_sudoku = false;
@@ -141,11 +140,12 @@ class Board {
   }
   remove_negatives_from_cell(cell, cellgps) {
     const candidates =
-      this.group_negatives[cellgps[0].group] |
-      this.group_negatives[cellgps[1].group] |
-      this.group_negatives[cellgps[2].group];
+      this.cell_candidates[cell] &
+      (this.group_negatives[cellgps[0].group] |
+        this.group_negatives[cellgps[1].group] |
+        this.group_negatives[cellgps[2].group]);
 
-    if ((this.cell_candidates[cell] & candidates) == 0) {
+    if (candidates == 0) {
       return false;
     }
 
@@ -182,10 +182,11 @@ class Board {
     }
 
     const candidates =
-      union |
-      this.group_negatives[cellgps[0].group] |
-      this.group_negatives[cellgps[1].group] |
-      this.group_negatives[cellgps[2].group];
+      this.cell_candidates[cell] &
+      (union |
+        this.group_negatives[cellgps[0].group] |
+        this.group_negatives[cellgps[1].group] |
+        this.group_negatives[cellgps[2].group]);
 
     return this.remove_candidates_from_cell(cell, cellgps, candidates);
   }
@@ -201,7 +202,7 @@ class Board {
         union |= this.cell_candidates[cell_indexes[bits_list[i]]];
       }
       if (count1s(union) == bits_list.length) {
-        const compbits = gbits & ~subbits;
+        const compbits = gbits ^ subbits;
         const bits_list = BITS_LISTS[compbits];
         const length = bits_list.length;
         let negatives = false;
@@ -227,13 +228,15 @@ class Board {
       let negatives = false;
       for (
         let changed_groups = this.changed_groups, group = 0;
-        changed_groups > 0;
+        changed_groups;
         changed_groups >>= 1, group++
       ) {
-        while ((changed_groups & 1) == 0) {
-          changed_groups >>= 1;
-          group++;
-        }
+        const trailing_zeros = [
+          32, 0, 1, 26, 2, 23, 27, 0, 3, 16, 24, 30, 28, 11, 0, 13, 4, 7, 17, 0,
+          25, 22, 31, 15, 29, 10, 12, 6, 0, 21, 14, 9, 5, 20, 8, 19, 18,
+        ][(changed_groups & -changed_groups) % 37];
+        changed_groups >>= trailing_zeros;
+        group += trailing_zeros;
         negatives |= this.eliminate_exclusive_subsets_from_group(
           this.group_cells[group],
           CELL_INDEXES[group]
@@ -261,7 +264,7 @@ class Board {
     );
   update_shortest() {
     for (let i = 0; i < 9; i++) {
-      const group = GROUP_ORDER[i];
+      const group = [22, 23, 25, 21, 19, 20, 26, 24, 18][i];
       const bits_list = BITS_LISTS[this.group_cells[group]];
       const length = bits_list.length;
       for (let i = 0; i < length; i++) {
