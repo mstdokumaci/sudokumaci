@@ -84,6 +84,7 @@ class Board {
     this.is_sudoku = true;
     this.group_cells = EMPTY_27.slice();
     this.group_negatives = EMPTY_27.slice();
+    this.shortest = EMTPY_SHORTEST;
     this.cell_candidates = cell_values.map((value, cell) => {
       const cellgps = CELL_GROUP_POS[cell];
       if (value == 0) {
@@ -99,7 +100,6 @@ class Board {
         return candidates;
       }
     });
-    this.shortest = EMTPY_SHORTEST;
     this.eliminate_group_negatives();
     this.eliminate_exclusive_subsets();
     assert(this.is_sudoku);
@@ -312,6 +312,7 @@ class Board {
       if (this.is_sudoku) {
         this.eliminate_exclusive_subsets();
       }
+      print_board(this);
 
       if (this.is_solved()) {
         return;
