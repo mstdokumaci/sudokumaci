@@ -377,13 +377,14 @@ impl Board {
 
         let length = self.shortest.length;
         let cell = self.shortest.cell;
+        let cellgps = CELL_GROUP_POS.get(cell).unwrap();
 
         for (index, candidate) in BITS_LISTS[cell_candidates[cell]].iter().enumerate() {
             let set_candidates = BIT9[*candidate];
             self.cell_candidates[cell] = set_candidates;
             self.is_sudoku = true;
             self.shortest = EMPTY_SHORTEST;
-            self.set_value(CELL_GROUP_POS.get(cell).unwrap(), set_candidates);
+            self.set_value(cellgps, set_candidates);
             self.eliminate_group_negatives();
             if self.is_sudoku {
                 self.eliminate_exclusive_subsets();
