@@ -178,9 +178,7 @@ class Board:
             return False
 
         self.changed_groups |= (
-            (511 & (1 << cellgps.group0))
-            | (511 & (1 << cellgps.group1))
-            | (511 & (1 << cellgps.group2))
+            (1 << cellgps.group0) | (1 << cellgps.group1) | (1 << cellgps.group2)
         )
 
         return self.remove_candidates_from_cell(cell, cellgps, candidates)
