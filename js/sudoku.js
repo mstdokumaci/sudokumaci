@@ -312,7 +312,6 @@ class Board {
       if (this.is_sudoku) {
         this.eliminate_exclusive_subsets();
       }
-      print_board(this);
 
       if (this.is_solved()) {
         return;
