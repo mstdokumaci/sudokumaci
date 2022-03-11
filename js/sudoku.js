@@ -59,6 +59,7 @@ const SUBBITS_LISTS = [...Array(512)]
       .map((_, sub_bits) => sub_bits)
       .filter((sub_bits) => is_valid_subset(super_length, super_bits, sub_bits))
       .map((sub_bits) => sub_bits)
+      .sort((a, b) => count1s(b) - count1s(a))
   );
 
 const CELL_GROUP_POS = [...Array(81)].map((_, index) => {

@@ -72,6 +72,7 @@ fn get_subbits_list(super_bits: usize) -> Vec<usize> {
             subbits_list.push(sub_bits);
         }
     }
+    subbits_list.sort_by(|a, b| b.count_ones().cmp(&a.count_ones()));
     subbits_list
 }
 

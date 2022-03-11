@@ -56,9 +56,15 @@ def is_valid_subset(super_length: int, super_bits: int, sub_bits: int) -> bool:
 def get_subbits_list(super_bits: int) -> tuple[int, ...]:
     super_length = count1s(super_bits)
     return tuple(
-        sub_bits
-        for sub_bits in range(0, super_bits)
-        if is_valid_subset(super_length, super_bits, sub_bits)
+        sorted(
+            tuple(
+                sub_bits
+                for sub_bits in range(0, super_bits)
+                if is_valid_subset(super_length, super_bits, sub_bits)
+            ),
+            key=count1s,
+            reverse=True,
+        )
     )
 
 
