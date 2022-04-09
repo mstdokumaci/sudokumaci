@@ -38,6 +38,18 @@ const BIT9: [usize; 9] = [
     0b100000000,
 ];
 
+const REMOVE_BIT9: [usize; 9] = [
+    0b111111110,
+    0b111111101,
+    0b111111011,
+    0b111110111,
+    0b111101111,
+    0b111011111,
+    0b110111111,
+    0b101111111,
+    0b011111111,
+];
+
 fn get_bits_list(bits: usize) -> Vec<usize> {
     BIT9.iter()
         .enumerate()
@@ -151,6 +163,7 @@ struct Board {
     group_cells: [usize; 27],
     group_negatives: [usize; 27],
     cell_candidates: [usize; 81],
+    unsolved_cells: u128,
     changed_groups: usize,
     shortest: Shortest,
 }
@@ -162,6 +175,7 @@ impl Board {
             group_cells: [0; 27],
             group_negatives: [0; 27],
             cell_candidates: [0; 81],
+            unsolved_cells: 0,
             changed_groups: 0,
             shortest: EMPTY_SHORTEST,
         };
@@ -172,6 +186,7 @@ impl Board {
                 board.group_cells[cellgps.0.group] |= BIT9[cellgps.0.pos];
                 board.group_cells[cellgps.1.group] |= BIT9[cellgps.1.pos];
                 board.group_cells[cellgps.2.group] |= BIT9[cellgps.2.pos];
+                board.unsolved_cells |= 1 << cell;
                 board.cell_candidates[cell] = 511;
             } else {
                 let candidates = BIT9[value - 1];
@@ -198,9 +213,9 @@ impl Board {
             .collect()
     }
     fn set_value(&mut self, cellgps: &GPS, candidates: usize) -> bool {
-        self.group_cells[cellgps.0.group] &= !BIT9[cellgps.0.pos];
-        self.group_cells[cellgps.1.group] &= !BIT9[cellgps.1.pos];
-        self.group_cells[cellgps.2.group] &= !BIT9[cellgps.2.pos];
+        self.group_cells[cellgps.0.group] &= REMOVE_BIT9[cellgps.0.pos];
+        self.group_cells[cellgps.1.group] &= REMOVE_BIT9[cellgps.1.pos];
+        self.group_cells[cellgps.2.group] &= REMOVE_BIT9[cellgps.2.pos];
         if (self.group_negatives[cellgps.0.group]
             | self.group_negatives[cellgps.1.group]
             | self.group_negatives[cellgps.2.group])
@@ -232,6 +247,7 @@ impl Board {
             if self.shortest.cell == *cell {
                 self.shortest = EMPTY_SHORTEST;
             }
+            self.unsolved_cells &= !(1 << *cell);
             return self.set_value(cellgps, candidates);
         } else if candidate_count < self.shortest.length {
             self.shortest = Shortest {
@@ -262,12 +278,15 @@ impl Board {
         let mut negatives = true;
         while self.is_sudoku & negatives {
             negatives = false;
-            for group in 0..9 {
-                for pos in BITS_LISTS[self.group_cells[group]].iter() {
-                    let cell = CELL_INDEXES.get(group).unwrap().get(*pos).unwrap();
-                    negatives |=
-                        self.remove_negatives_from_cell(cell, CELL_GROUP_POS.get(*cell).unwrap());
-                }
+            let mut unsolved_cells = self.unsolved_cells;
+            let mut cell = 0;
+            while unsolved_cells != 0 {
+                let trailing_zeros = unsolved_cells.trailing_zeros() as usize;
+                unsolved_cells >>= trailing_zeros + 1;
+                cell += trailing_zeros;
+                negatives |=
+                    self.remove_negatives_from_cell(&cell, CELL_GROUP_POS.get(cell).unwrap());
+                cell += 1;
             }
         }
     }
@@ -286,16 +305,20 @@ impl Board {
     }
     fn eliminate_exclusive_subsets_from_group(
         &mut self,
+        group: &usize,
         gbits: usize,
         cell_indexes: &[usize; 9],
+        replace: bool,
     ) -> bool {
         for subbits in SUBBITS_LISTS[gbits].iter() {
             let mut union: usize = 0;
             for pos in BITS_LISTS[*subbits].iter() {
                 union |= self.cell_candidates[*cell_indexes.get(*pos).unwrap()];
             }
-            if (union as u16).count_ones() == (*subbits as u16).count_ones() {
+            let sub_count = (*subbits as u16).count_ones();
+            if (union as u16).count_ones() == sub_count {
                 let compbits = gbits ^ *subbits;
+                let comp_count = (compbits as u16).count_ones();
                 let mut negatives = false;
                 for pos in BITS_LISTS[compbits].iter() {
                     let cell = cell_indexes.get(*pos).unwrap();
@@ -305,9 +328,44 @@ impl Board {
                         &union,
                     );
                 }
+                if replace {
+                    if comp_count < 3 {
+                        if sub_count < 3 {
+                            self.group_cells[*group] = 0;
+                            return negatives;
+                        }
+                        self.group_cells[*group] = *subbits;
+                        return negatives
+                            | self.eliminate_exclusive_subsets_from_group(
+                                group,
+                                *subbits,
+                                cell_indexes,
+                                true,
+                            );
+                    } else if sub_count < 3 {
+                        self.group_cells[*group] = compbits;
+                        return negatives
+                            | self.eliminate_exclusive_subsets_from_group(
+                                group,
+                                compbits,
+                                cell_indexes,
+                                true,
+                            );
+                    }
+                }
                 return negatives
-                    | self.eliminate_exclusive_subsets_from_group(*subbits, cell_indexes)
-                    | self.eliminate_exclusive_subsets_from_group(compbits, cell_indexes);
+                    | self.eliminate_exclusive_subsets_from_group(
+                        group,
+                        *subbits,
+                        cell_indexes,
+                        false,
+                    )
+                    | self.eliminate_exclusive_subsets_from_group(
+                        group,
+                        compbits,
+                        cell_indexes,
+                        false,
+                    );
             }
         }
         false
@@ -322,8 +380,10 @@ impl Board {
                 changed_groups >>= trailing_zeros + 1;
                 group += trailing_zeros;
                 negatives |= self.eliminate_exclusive_subsets_from_group(
+                    &group,
                     self.group_cells[group],
                     CELL_INDEXES.get(group).unwrap(),
+                    true,
                 );
                 group += 1;
             }
@@ -335,36 +395,29 @@ impl Board {
         }
     }
     fn is_solved(&self) -> bool {
-        self.is_sudoku
-            && (self.group_cells[0]
-                | self.group_cells[1]
-                | self.group_cells[2]
-                | self.group_cells[3]
-                | self.group_cells[4]
-                | self.group_cells[5]
-                | self.group_cells[6]
-                | self.group_cells[7]
-                | self.group_cells[8]
-                == 0)
+        self.is_sudoku && self.unsolved_cells == 0
     }
     fn update_shortest(&mut self) {
-        for group in [22, 23, 25, 21, 19, 20, 26, 24, 18].iter() {
-            for pos in BITS_LISTS[self.group_cells[*group]].iter() {
-                let cell = CELL_INDEXES[*group][*pos];
-                let length = self.cell_candidates[cell].count_ones() as usize;
-                if length == 2 {
-                    self.shortest = Shortest {
-                        length: 2,
-                        cell: cell,
-                    };
-                    return;
-                } else if length < self.shortest.length {
-                    self.shortest = Shortest {
-                        length: length,
-                        cell: cell,
-                    };
-                }
+        let mut unsolved_cells = self.unsolved_cells;
+        let mut cell = 0;
+        while unsolved_cells != 0 {
+            let trailing_zeros = unsolved_cells.trailing_zeros() as usize;
+            unsolved_cells >>= trailing_zeros + 1;
+            cell += trailing_zeros;
+            let length = self.cell_candidates[cell].count_ones() as usize;
+            if length == 2 {
+                self.shortest = Shortest {
+                    length: 2,
+                    cell: cell,
+                };
+                return;
+            } else if length < self.shortest.length {
+                self.shortest = Shortest {
+                    length: length,
+                    cell: cell,
+                };
             }
+            cell += 1;
         }
     }
     fn trial_and_error(&mut self) {
@@ -375,6 +428,7 @@ impl Board {
         let cell_candidates = self.cell_candidates.clone();
         let group_cells = self.group_cells.clone();
         let group_negatives = self.group_negatives.clone();
+        let unsolved_cells = self.unsolved_cells;
 
         let length = self.shortest.length;
         let cell = self.shortest.cell;
@@ -385,6 +439,7 @@ impl Board {
             self.cell_candidates[cell] = set_candidates;
             self.is_sudoku = true;
             self.shortest = EMPTY_SHORTEST;
+            self.unsolved_cells &= !(1 << cell);
             self.set_value(cellgps, set_candidates);
             self.eliminate_group_negatives();
             if self.is_sudoku {
@@ -404,10 +459,12 @@ impl Board {
                 self.cell_candidates = cell_candidates;
                 self.group_cells = group_cells;
                 self.group_negatives = group_negatives;
+                self.unsolved_cells = unsolved_cells;
             } else if index + 1 != length {
                 self.cell_candidates = cell_candidates.clone();
                 self.group_cells = group_cells.clone();
                 self.group_negatives = group_negatives.clone();
+                self.unsolved_cells = unsolved_cells;
             }
         }
     }
