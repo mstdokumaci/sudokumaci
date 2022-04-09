@@ -1,42 +1,10 @@
-const fn get_cell_index(group: usize, pos: usize) -> usize {
-    let gindex: usize = group / 9 | 0;
-    let group = group % 9;
-    match gindex {
-        0 => (group * 9 + pos),
-        1 => (pos * 9 + group),
-        2 => ((group / 3 | 0) * 27 + (pos / 3 | 0) * 9 + (group % 3) * 3 + (pos % 3)),
-        _ => unreachable!(),
-    }
-}
+mod list;
 
-const fn get_cell_indexes() -> [[usize; 9]; 27] {
-    let mut map = [[0; 9]; 27];
-    let mut group: usize = 0;
-    let mut pos: usize = 0;
-    while group < 27 {
-        while pos < 9 {
-            map[group][pos] = get_cell_index(group, pos);
-            pos += 1;
-        }
-        group += 1;
-        pos = 0;
-    }
-    map
-}
-
-const CELL_INDEXES: [[usize; 9]; 27] = get_cell_indexes();
-
-const BIT9: [usize; 9] = [
-    0b1,
-    0b10,
-    0b100,
-    0b1000,
-    0b10000,
-    0b100000,
-    0b1000000,
-    0b10000000,
-    0b100000000,
-];
+const BIT9: [usize; 9] = list::BIT9;
+const GROUPS: [u128; 27] = list::GROUPS;
+const SET_CELLS: [u128; 81] = list::SET_CELLS;
+const POSSIBLE: [[usize; 937]; 54] = list::POSSIBLE;
+const BIT81: [u128; 81] = list::BIT81;
 
 fn get_bits_list(bits: usize) -> Vec<usize> {
     BIT9.iter()
@@ -48,7 +16,7 @@ fn get_bits_list(bits: usize) -> Vec<usize> {
 
 fn get_bits_lists() -> [Vec<usize>; 512] {
     const INIT: Vec<usize> = vec![];
-    let mut bits_list: [Vec<usize>; 512] = [INIT; 512];
+    let mut bits_list = [INIT; 512];
     let mut bits = 0;
     while bits < 512 {
         bits_list[bits] = get_bits_list(bits);
@@ -58,399 +26,163 @@ fn get_bits_lists() -> [Vec<usize>; 512] {
 }
 
 lazy_static! {
-    static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
+    pub static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
 }
 
-fn get_subbits_list(super_bits: usize) -> Vec<usize> {
-    let mut subbits_list: Vec<usize> = vec![];
-    let super_length = super_bits.count_ones();
-    let mut sub_bits = 0;
-    while sub_bits < super_bits {
-        sub_bits += 1;
-        let sub_length = sub_bits.count_ones();
-        if sub_bits & !super_bits == 0 && sub_length < super_length && sub_length > 1 {
-            subbits_list.push(sub_bits);
-        }
-    }
-    subbits_list.sort_by(|a, b| b.count_ones().cmp(&a.count_ones()));
-    subbits_list
-}
-
-fn get_subbits_lists() -> [Vec<usize>; 512] {
-    const INIT: Vec<usize> = vec![];
-    let mut subbits_list: [Vec<usize>; 512] = [INIT; 512];
-    let mut bits = 0;
-    while bits < 512 {
-        subbits_list[bits] = get_subbits_list(bits);
-        bits += 1;
-    }
-    subbits_list
-}
-
-lazy_static! {
-    static ref SUBBITS_LISTS: [Vec<usize>; 512] = get_subbits_lists();
-}
-
-#[derive(Copy, Clone)]
-struct GroupPos {
-    group: usize,
-    pos: usize,
-}
-
-type GPS = (GroupPos, GroupPos, GroupPos);
-
-const fn get_gps(cell: usize) -> GPS {
-    let row = cell / 9 | 0;
-    let col = cell % 9;
-    let sqr = (row / 3 | 0) * 3 + (col / 3 | 0);
-    let sqp = row % 3 * 3 + col % 3;
-    (
-        GroupPos {
-            group: row,
-            pos: col,
-        },
-        GroupPos {
-            group: col + 9,
-            pos: row,
-        },
-        GroupPos {
-            group: sqr + 18,
-            pos: sqp,
-        },
-    )
-}
-
-const fn get_cellgps() -> [GPS; 81] {
-    let mut cellgps = [(
-        GroupPos { group: 0, pos: 0 },
-        GroupPos { group: 0, pos: 0 },
-        GroupPos { group: 0, pos: 0 },
-    ); 81];
-    let mut index: usize = 0;
-    while index < 81 {
-        cellgps[index] = get_gps(index);
-        index += 1;
-    }
-    cellgps
-}
-
-const CELL_GROUP_POS: [GPS; 81] = get_cellgps();
-
-struct Shortest {
-    length: usize,
-    cell: usize,
-}
-
-const EMPTY_SHORTEST: Shortest = Shortest {
-    length: 10,
-    cell: 81,
-};
+const ALL81: u128 =
+    0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 struct Board {
     is_sudoku: bool,
-    group_cells: [usize; 27],
-    group_negatives: [usize; 27],
-    cell_candidates: [usize; 81],
-    changed_groups: usize,
-    shortest: Shortest,
+    numbers: usize,
+    number_cells: [u128; 9],
 }
 
 impl Board {
     fn new(cell_values: [usize; 81]) -> String {
         let mut board = Board {
             is_sudoku: true,
-            group_cells: [0; 27],
-            group_negatives: [0; 27],
-            cell_candidates: [0; 81],
-            changed_groups: 0,
-            shortest: EMPTY_SHORTEST,
+            numbers: 0b111111111,
+            number_cells: [ALL81; 9],
         };
-        for cell in 0..81 {
-            let value = cell_values[cell];
-            let cellgps = CELL_GROUP_POS[cell];
-            if value == 0 {
-                board.group_cells[cellgps.0.group] |= BIT9[cellgps.0.pos];
-                board.group_cells[cellgps.1.group] |= BIT9[cellgps.1.pos];
-                board.group_cells[cellgps.2.group] |= BIT9[cellgps.2.pos];
-                board.cell_candidates[cell] = 511;
-            } else {
-                let candidates = BIT9[value - 1];
-                board.group_negatives[cellgps.0.group] |= candidates;
-                board.group_negatives[cellgps.1.group] |= candidates;
-                board.group_negatives[cellgps.2.group] |= candidates;
-                board.cell_candidates[cell] = candidates;
+
+        let mut remove_from_others = [0; 9];
+
+        for cell_index in 0..81 {
+            let value = cell_values[cell_index];
+            if value > 0 {
+                let number = value - 1;
+                board.number_cells[number] &= SET_CELLS[cell_index];
+                remove_from_others[number] |= BIT81[cell_index];
             }
         }
-        board.eliminate_group_negatives();
-        board.eliminate_exclusive_subsets();
+
+        let shortest = board.remove_from_others(remove_from_others);
+        board.trial_and_error(shortest);
         assert!(board.is_sudoku);
-        if !board.is_solved() {
-            board.trial_and_error();
+
+        let mut solved: [u32; 81] = [0; 81];
+        for number in 0..9 {
+            let cells = board.number_cells.get_mut(number).unwrap();
+            let mut cell_index = 0;
+            while *cells > 0 {
+                let tz = cells.trailing_zeros() as usize;
+                cell_index += tz;
+                solved[cell_index] = (number + 1) as u32;
+                *cells >>= tz + 1;
+                cell_index += 1;
+            }
         }
-        assert!(board.is_sudoku);
-        board
-            .cell_candidates
+        solved
             .iter()
-            .map(|candidate| match candidate.count_ones() {
-                1 => char::from_digit(candidate.trailing_zeros() + 1, 10).unwrap(),
-                _ => '0',
-            })
+            .map(|&x| char::from_digit(x, 10).unwrap())
             .collect()
     }
-    fn set_value(&mut self, cellgps: &GPS, candidates: usize) -> bool {
-        self.group_cells[cellgps.0.group] &= !BIT9[cellgps.0.pos];
-        self.group_cells[cellgps.1.group] &= !BIT9[cellgps.1.pos];
-        self.group_cells[cellgps.2.group] &= !BIT9[cellgps.2.pos];
-        if (self.group_negatives[cellgps.0.group]
-            | self.group_negatives[cellgps.1.group]
-            | self.group_negatives[cellgps.2.group])
-            & candidates
-            != 0
-        {
-            self.is_sudoku = false;
-            return false;
-        }
-        self.group_negatives[cellgps.0.group] |= candidates;
-        self.group_negatives[cellgps.1.group] |= candidates;
-        self.group_negatives[cellgps.2.group] |= candidates;
-        return true;
-    }
-    fn remove_candidates_from_cell(
-        &mut self,
-        cell: &usize,
-        cellgps: &GPS,
-        candidates: &usize,
-    ) -> bool {
-        self.cell_candidates[*cell] ^= *candidates;
-        let candidates = self.cell_candidates[*cell];
-
-        let candidate_count = candidates.count_ones() as usize;
-        if candidate_count == 0 {
-            self.is_sudoku = false;
-            return false;
-        } else if candidate_count == 1 {
-            if self.shortest.cell == *cell {
-                self.shortest = EMPTY_SHORTEST;
-            }
-            return self.set_value(cellgps, candidates);
-        } else if candidate_count < self.shortest.length {
-            self.shortest = Shortest {
-                length: candidate_count,
-                cell: *cell,
-            };
-        }
-        false
-    }
-    fn remove_negatives_from_cell(&mut self, cell: &usize, cellgps: &GPS) -> bool {
-        let candidates = self.cell_candidates[*cell]
-            & (self.group_negatives[cellgps.0.group]
-                | self.group_negatives[cellgps.1.group]
-                | self.group_negatives[cellgps.2.group]);
-
-        if candidates == 0 {
-            return false;
-        }
-
-        self.changed_groups |=
-            (1 << cellgps.0.group) | (1 << cellgps.1.group) | (1 << cellgps.2.group);
-
-        return self.remove_candidates_from_cell(cell, cellgps, &candidates);
-    }
-    fn eliminate_group_negatives(&mut self) {
-        self.changed_groups = 0;
-
-        let mut negatives = true;
-        while self.is_sudoku & negatives {
-            negatives = false;
-            for group in 0..9 {
-                for pos in BITS_LISTS[self.group_cells[group]].iter() {
-                    let cell = CELL_INDEXES.get(group).unwrap().get(*pos).unwrap();
-                    negatives |=
-                        self.remove_negatives_from_cell(cell, CELL_GROUP_POS.get(*cell).unwrap());
+    fn remove_from_others(&mut self, remove_from_others: [u128; 9]) -> (usize, u32) {
+        let mut shortest_length = 81;
+        let mut shortest_number = 0;
+        let mut new_remove_from_others = [0; 9];
+        let mut new_remove = false;
+        for number in BITS_LISTS.get(self.numbers).unwrap().iter() {
+            let mut union = 0;
+            for (remove_number, remove) in remove_from_others.iter().enumerate() {
+                if *number != remove_number {
+                    union |= *remove;
                 }
             }
-        }
-    }
-    fn remove_union_from_cell(&mut self, cell: &usize, cellgps: &GPS, union: &usize) -> bool {
-        if (self.cell_candidates[*cell] & *union) == 0 {
-            return false;
-        }
-
-        let candidates = self.cell_candidates[*cell]
-            & (*union
-                | self.group_negatives[cellgps.0.group]
-                | self.group_negatives[cellgps.1.group]
-                | self.group_negatives[cellgps.2.group]);
-
-        return self.remove_candidates_from_cell(cell, cellgps, &candidates);
-    }
-    fn eliminate_exclusive_subsets_from_group(
-        &mut self,
-        gbits: usize,
-        cell_indexes: &[usize; 9],
-    ) -> bool {
-        for subbits in SUBBITS_LISTS[gbits].iter() {
-            let mut union: usize = 0;
-            for pos in BITS_LISTS[*subbits].iter() {
-                union |= self.cell_candidates[*cell_indexes.get(*pos).unwrap()];
+            let cells = self.number_cells.get_mut(*number).unwrap();
+            *cells &= !union;
+            let ones = cells.count_ones();
+            if ones < 9 {
+                self.is_sudoku = false;
+                return (*number, ones);
             }
-            if (union as u16).count_ones() == (*subbits as u16).count_ones() {
-                let compbits = gbits ^ *subbits;
-                let mut negatives = false;
-                for pos in BITS_LISTS[compbits].iter() {
-                    let cell = cell_indexes.get(*pos).unwrap();
-                    negatives |= self.remove_union_from_cell(
-                        cell,
-                        CELL_GROUP_POS.get(*cell).unwrap(),
-                        &union,
-                    );
-                }
-                return negatives
-                    | self.eliminate_exclusive_subsets_from_group(*subbits, cell_indexes)
-                    | self.eliminate_exclusive_subsets_from_group(compbits, cell_indexes);
-            }
-        }
-        false
-    }
-    fn eliminate_exclusive_subsets(&mut self) {
-        loop {
-            let mut negatives = false;
-            let mut changed_groups = self.changed_groups;
-            let mut group = 0;
-            while changed_groups != 0 {
-                let trailing_zeros = changed_groups.trailing_zeros() as usize;
-                changed_groups >>= trailing_zeros + 1;
-                group += trailing_zeros;
-                negatives |= self.eliminate_exclusive_subsets_from_group(
-                    self.group_cells[group],
-                    CELL_INDEXES.get(group).unwrap(),
-                );
-                group += 1;
-            }
-            if negatives {
-                self.eliminate_group_negatives();
-            } else {
-                return;
-            }
-        }
-    }
-    fn is_solved(&self) -> bool {
-        self.is_sudoku
-            && (self.group_cells[0]
-                | self.group_cells[1]
-                | self.group_cells[2]
-                | self.group_cells[3]
-                | self.group_cells[4]
-                | self.group_cells[5]
-                | self.group_cells[6]
-                | self.group_cells[7]
-                | self.group_cells[8]
-                == 0)
-    }
-    fn update_shortest(&mut self) {
-        for group in [22, 23, 25, 21, 19, 20, 26, 24, 18].iter() {
-            for pos in BITS_LISTS[self.group_cells[*group]].iter() {
-                let cell = CELL_INDEXES[*group][*pos];
-                let length = self.cell_candidates[cell].count_ones() as usize;
-                if length == 2 {
-                    self.shortest = Shortest {
-                        length: 2,
-                        cell: cell,
-                    };
-                    return;
-                } else if length < self.shortest.length {
-                    self.shortest = Shortest {
-                        length: length,
-                        cell: cell,
-                    };
+            for group_mask in GROUPS.iter() {
+                let group = *cells & *group_mask;
+                let group_ones = group.count_ones();
+                if group_ones == 0 {
+                    self.is_sudoku = false;
+                    return (*number, ones);
+                } else if group_ones == 1 {
+                    let set_cells = SET_CELLS[group.trailing_zeros() as usize];
+                    if *cells & set_cells != *cells {
+                        *cells &= set_cells;
+                        new_remove_from_others[*number] |= group;
+                        new_remove = true;
+                    }
                 }
             }
-        }
-    }
-    fn trial_and_error(&mut self) {
-        if self.shortest.length > 9 {
-            self.update_shortest()
-        }
-
-        let cell_candidates = self.cell_candidates.clone();
-        let group_cells = self.group_cells.clone();
-        let group_negatives = self.group_negatives.clone();
-
-        let length = self.shortest.length;
-        let cell = self.shortest.cell;
-        let cellgps = CELL_GROUP_POS.get(cell).unwrap();
-
-        for (index, candidate) in BITS_LISTS[cell_candidates[cell]].iter().enumerate() {
-            let set_candidates = BIT9[*candidate];
-            self.cell_candidates[cell] = set_candidates;
-            self.is_sudoku = true;
-            self.shortest = EMPTY_SHORTEST;
-            self.set_value(cellgps, set_candidates);
-            self.eliminate_group_negatives();
-            if self.is_sudoku {
-                self.eliminate_exclusive_subsets();
-            }
-
-            if self.is_solved() {
-                return;
-            } else if self.is_sudoku {
-                self.trial_and_error();
-                if self.is_solved() {
-                    return;
-                }
-            }
-
-            if index + 2 == length {
-                self.cell_candidates = cell_candidates;
-                self.group_cells = group_cells;
-                self.group_negatives = group_negatives;
-            } else if index + 1 != length {
-                self.cell_candidates = cell_candidates.clone();
-                self.group_cells = group_cells.clone();
-                self.group_negatives = group_negatives.clone();
+            if ones < shortest_length {
+                shortest_number = *number;
+                shortest_length = ones;
             }
         }
-    }
-}
-
-const FIRST_LINE: &str =
-    "╔═════════╤═════════╤═════════╦═════════╤═════════╤═════════╦═════════╤═════════╤═════════╗";
-const EVERY_LINE: &str =
-    "╟─────────┼─────────┼─────────╫─────────┼─────────┼─────────╫─────────┼─────────┼─────────╢";
-const THREE_LINE: &str =
-    "╠═════════╪═════════╪═════════╬═════════╪═════════╪═════════╬═════════╪═════════╪═════════╣";
-const LAST_LINE: &str =
-    "╚═════════╧═════════╧═════════╩═════════╧═════════╧═════════╩═════════╧═════════╧═════════╝";
-
-fn print_board(board: &Board) {
-    println!("{}", FIRST_LINE);
-    for line_count in 0..9 {
-        print!("{}", "║");
-        for cell_count in 0..9 {
-            let cell = cell_count + line_count * 9;
-            print!(
-                "{: ^9}",
-                BITS_LISTS[board.cell_candidates[cell]]
-                    .iter()
-                    .map(|x| (x + 1).to_string())
-                    .collect::<Vec<String>>()
-                    .join("")
-            );
-            if cell_count == 8 {
-                print!("{}", "║\n");
-            } else if cell_count % 3 == 2 {
-                print!("{}", "║");
-            } else {
-                print!("{}", "│");
-            }
-        }
-        if line_count == 8 {
-            println!("{}", LAST_LINE);
-        } else if line_count % 3 == 2 {
-            println!("{}", THREE_LINE);
+        if new_remove {
+            self.remove_from_others(new_remove_from_others)
         } else {
-            println!("{}", EVERY_LINE);
+            (shortest_number, shortest_length)
         }
+    }
+    fn remove_single_from_others(&mut self, number: usize, cells: u128) -> (usize, u32) {
+        let mut remove_from_others = [0; 9];
+        remove_from_others[number] = cells;
+        self.remove_from_others(remove_from_others)
+    }
+    fn trial_and_error(&mut self, shortest: (usize, u32)) {
+        if self.is_sudoku == false {
+            return;
+        }
+
+        let (number, length) = shortest;
+
+        self.numbers ^= BIT9[number];
+        let cells = self.number_cells[number];
+
+        if length == 9 {
+            if self.numbers != 0 {
+                let shortest = self.remove_single_from_others(number, cells);
+                self.trial_and_error(shortest);
+            }
+            return;
+        }
+
+        let numbers = self.numbers;
+        let number_cells = self.number_cells.clone();
+
+        let first_group = cells & 0b111111111111111111;
+        let second_group = (cells >> 18) & 0b111111111111111111111111111;
+        let third_group = (cells >> 45) & 0b111111111111111111111111111111111111;
+
+        for sub_list in POSSIBLE.iter() {
+            let first = sub_list[0] as u128;
+            if first & first_group == first {
+                for index in (1..925).step_by(13) {
+                    let second = sub_list[index] as u128;
+                    if second & second_group == second {
+                        for index in index + 1..index + 13 {
+                            let third = sub_list[index] as u128;
+                            if third & third_group == third {
+                                self.number_cells[number] = third << 45 | second << 18 | first;
+                                self.is_sudoku = true;
+                                if self.numbers == 0 {
+                                    return;
+                                }
+                                let shortest = self
+                                    .remove_single_from_others(number, self.number_cells[number]);
+                                self.trial_and_error(shortest);
+                                if self.is_sudoku {
+                                    return;
+                                } else {
+                                    self.numbers = numbers;
+                                    self.number_cells = number_cells.clone();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        self.is_sudoku = false;
     }
 }
 
