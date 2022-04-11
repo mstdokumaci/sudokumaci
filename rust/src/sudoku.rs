@@ -194,7 +194,6 @@ pub fn solve(puzzle: &str) -> String {
         .map(|c| c.to_digit(10).unwrap() as usize)
         .enumerate()
     {
-        assert!(value < 10);
         cell_values[index] = value;
     }
     Board::new(cell_values)
