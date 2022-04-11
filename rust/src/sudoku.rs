@@ -9,8 +9,8 @@ const BIT81: [u128; 81] = list::BIT81;
 fn get_bits_list(bits: usize) -> Vec<usize> {
     BIT9.iter()
         .enumerate()
-        .filter(|&bit| bits & bit.1 != 0)
-        .map(|x| x.0)
+        .filter(|bit| bits & bit.1 != 0)
+        .map(|bit| bit.0)
         .collect::<Vec<usize>>()
 }
 
@@ -62,8 +62,7 @@ impl Board {
         assert!(board.is_sudoku);
 
         let mut solved: [u32; 81] = [0; 81];
-        for number in 0..9 {
-            let cells = board.number_cells.get_mut(number).unwrap();
+        for (number, cells) in board.number_cells.iter_mut().enumerate() {
             let mut cell_index = 0;
             while *cells > 0 {
                 let tz = cells.trailing_zeros() as usize;
@@ -75,7 +74,7 @@ impl Board {
         }
         solved
             .iter()
-            .map(|&x| char::from_digit(x, 10).unwrap())
+            .map(|n| char::from_digit(*n, 10).unwrap())
             .collect()
     }
     fn remove_from_others(&mut self, remove_from_others: [u128; 9]) -> (usize, u32) {
