@@ -90,30 +90,35 @@ impl Board {
                 }
             }
             let cells = self.number_cells.get_mut(*number).unwrap();
-            *cells &= !union;
-            let ones = cells.count_ones();
-            if ones < 9 {
-                self.is_sudoku = false;
-                return (*number, ones);
-            }
-            for group_mask in GROUPS.iter() {
-                let group = *cells & *group_mask;
-                let group_ones = group.count_ones();
-                if group_ones == 0 {
+            let removed = *cells & !union;
+            if removed != *cells {
+                *cells = removed;
+                let ones = cells.count_ones();
+                if ones < 9 {
                     self.is_sudoku = false;
                     return (*number, ones);
-                } else if group_ones == 1 {
-                    let set_cells = SET_CELLS[group.trailing_zeros() as usize];
-                    if *cells & set_cells != *cells {
-                        *cells &= set_cells;
-                        new_remove_from_others[*number] |= group;
-                        new_remove = true;
+                }
+                for group_mask in GROUPS.iter() {
+                    let group = *cells & *group_mask;
+                    let group_ones = group.count_ones();
+                    if group_ones == 0 {
+                        self.is_sudoku = false;
+                        return (*number, ones);
+                    } else if group_ones == 1 {
+                        let set_cells = SET_CELLS[group.trailing_zeros() as usize];
+                        if *cells & set_cells != *cells {
+                            *cells &= set_cells;
+                            new_remove_from_others[*number] |= group;
+                            new_remove = true;
+                        }
                     }
                 }
-            }
-            if ones < shortest_length {
-                shortest_number = *number;
-                shortest_length = ones;
+            } else {
+                let ones = cells.count_ones();
+                if ones < shortest_length {
+                    shortest_number = *number;
+                    shortest_length = ones;
+                }
             }
         }
         if new_remove {
