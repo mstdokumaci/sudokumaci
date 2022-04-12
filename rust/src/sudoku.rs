@@ -96,22 +96,26 @@ impl Board {
                 let ones = cells.count_ones();
                 if ones < 9 {
                     self.is_sudoku = false;
-                    return (*number, ones);
+                    return (0, 0);
                 }
                 for group_mask in GROUPS.iter() {
                     let group = *cells & *group_mask;
                     let group_ones = group.count_ones();
                     if group_ones == 0 {
                         self.is_sudoku = false;
-                        return (*number, ones);
+                        return (0, 0);
                     } else if group_ones == 1 {
-                        let set_cells = SET_CELLS[group.trailing_zeros() as usize];
-                        if *cells & set_cells != *cells {
-                            *cells &= set_cells;
+                        let set_cells = *cells & SET_CELLS[group.trailing_zeros() as usize];
+                        if *cells != set_cells {
+                            *cells = set_cells;
                             new_remove_from_others[*number] |= group;
                             new_remove = true;
                         }
                     }
+                }
+                if ones < shortest_length {
+                    shortest_number = *number;
+                    shortest_length = ones;
                 }
             } else {
                 let ones = cells.count_ones();
