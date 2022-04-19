@@ -157,20 +157,21 @@ impl Board {
         let numbers = self.numbers;
         let number_cells = self.number_cells.clone();
 
-        let first_group = cells & 0b111111111111111111;
-        let second_group = (cells >> 18) & 0b111111111111111111111111111;
-        let third_group = (cells >> 45) & 0b111111111111111111111111111111111111;
+        let first_group = (cells & 0b111111111111111111) as usize;
+        let second_group = ((cells >> 18) & 0b111111111111111111111111111) as usize;
+        let third_group = ((cells >> 45) & 0b111111111111111111111111111111111111) as usize;
 
         for sub_list in POSSIBLE.iter() {
-            let first = sub_list[0] as u128;
+            let first = sub_list[0];
             if first & first_group == first {
                 for index in (1..925).step_by(13) {
-                    let second = sub_list[index] as u128;
+                    let second = sub_list[index];
                     if second & second_group == second {
                         for index in index + 1..index + 13 {
-                            let third = sub_list[index] as u128;
+                            let third = sub_list[index];
                             if third & third_group == third {
-                                self.number_cells[number] = third << 45 | second << 18 | first;
+                                self.number_cells[number] =
+                                    (third as u128) << 45 | (second as u128) << 18 | first as u128;
                                 self.is_sudoku = true;
                                 if self.numbers == 0 {
                                     return;
