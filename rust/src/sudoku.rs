@@ -64,7 +64,7 @@ impl Board {
         let mut solved: [u32; 81] = [0; 81];
         for (number, cells) in board.number_cells.iter_mut().enumerate() {
             let mut cell_index = 0;
-            while *cells > 0 {
+            while *cells != 0 {
                 let tz = cells.trailing_zeros() as usize;
                 cell_index += tz;
                 solved[cell_index] = (number + 1) as u32;
