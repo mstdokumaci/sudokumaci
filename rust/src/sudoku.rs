@@ -106,7 +106,7 @@ impl Board {
                         return (0, 0);
                     } else if group_ones == 1 {
                         let set_cells = *cells & SET_CELLS[group.trailing_zeros() as usize];
-                        if *cells != set_cells {
+                        if set_cells != *cells {
                             *cells = set_cells;
                             new_remove_from_others[*number] |= group;
                             new_remove = true;
