@@ -1,3 +1,38 @@
+pub const BIT9: [usize; 9] = [
+    0b000000001,
+    0b000000010,
+    0b000000100,
+    0b000001000,
+    0b000010000,
+    0b000100000,
+    0b001000000,
+    0b010000000,
+    0b100000000,
+];
+
+fn get_bits_list(bits: usize) -> Vec<usize> {
+    BIT9.iter()
+        .enumerate()
+        .filter(|bit| bits & bit.1 != 0)
+        .map(|bit| bit.0)
+        .collect::<Vec<usize>>()
+}
+
+fn get_bits_lists() -> [Vec<usize>; 512] {
+    const INIT: Vec<usize> = vec![];
+    let mut bits_list = [INIT; 512];
+    let mut bits = 0;
+    while bits < 512 {
+        bits_list[bits] = get_bits_list(bits);
+        bits += 1;
+    }
+    bits_list
+}
+
+lazy_static! {
+    pub static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
+}
+
 pub const BIT81: [u128; 81] = [
     0b1,
     0b10,
@@ -206,6 +241,23 @@ pub fn make_set_cells() {
         let sqr = 3 * (row / 3) + col / 3;
         let set_cell =
             ((GROUPS[row] | GROUPS[col + 9] | GROUPS[sqr + 18]) ^ ALL81) | BIT81[cell_index];
-        println!("0b{:b},", set_cell)
+        println!("0b{:081b},", set_cell)
+    }
+}
+
+pub fn make_possibles() {
+    let mut possibles: Vec<u128> = vec![ALL81];
+    for row_index in 0..9 as usize {
+        let mut new_possibles: Vec<u128> = Vec::new();
+        for possible in possibles {
+            let columns = ((possible & GROUPS[row_index]) >> (row_index * 9)) as usize;
+            for col_index in BITS_LISTS.get(columns).unwrap().iter() {
+                new_possibles.push(possible & SET_CELLS[row_index * 9 + col_index])
+            }
+        }
+        possibles = new_possibles
+    }
+    for possible in possibles {
+        println!("0b{:081b},", possible)
     }
 }
