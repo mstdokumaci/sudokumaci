@@ -1,10 +1,11 @@
-mod list;
+pub mod list;
 
 const BIT9: [usize; 9] = list::BIT9;
 const GROUPS: [u128; 27] = list::GROUPS;
 const SET_CELLS: [u128; 81] = list::SET_CELLS;
 const POSSIBLE: [[usize; 937]; 54] = list::POSSIBLE;
 const BIT81: [u128; 81] = list::BIT81;
+const ALL81: u128 = list::ALL81;
 
 fn get_bits_list(bits: usize) -> Vec<usize> {
     BIT9.iter()
@@ -28,9 +29,6 @@ fn get_bits_lists() -> [Vec<usize>; 512] {
 lazy_static! {
     pub static ref BITS_LISTS: [Vec<usize>; 512] = get_bits_lists();
 }
-
-const ALL81: u128 =
-    0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 struct Board {
     is_sudoku: bool,
