@@ -46741,7 +46741,6 @@ pub fn narow_possible_indexes(bits: u128, indexes: Vec<usize>) -> Vec<PI> {
 }
 
 pub fn make_possible_combinations() {
-    let mut count = 0;
     for &possible in POSSIBLES.iter() {
         let mut possible_indexes = narow_possible_indexes(
             possible,
@@ -46752,8 +46751,6 @@ pub fn make_possible_combinations() {
                 .map(|(i, _)| i)
                 .collect::<Vec<usize>>(),
         );
-        count += 1;
-        println!("{}", count)
     }
 }
 
