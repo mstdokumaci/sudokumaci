@@ -5,6 +5,7 @@ extern crate lazy_static;
 // use std::env;
 // use std::fs;
 
+mod bitset;
 mod make_list;
 mod sudoku;
 
@@ -32,5 +33,13 @@ mod sudoku;
 // }
 
 fn main() {
-    make_list::make_possible_combinations();
+    for i in bitset::BitSetTraverse::new([
+        0b0000000000000000000000000000000110110011011000000110110011011000,
+        0b1001101100000011011000001101100001101100001101100001101100000000,
+        0b0000000000000000000000000000000000000000000000000110110000001101,
+    ])
+    .into_iter()
+    {
+        println!("{}", i)
+    }
 }
