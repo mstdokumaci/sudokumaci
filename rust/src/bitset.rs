@@ -132,9 +132,9 @@ impl Iterator for BitSetTraverse {
                 let shift = tz + 1;
                 if shift != 64 {
                     self.bits_list[list_index] >>= shift;
-                    self.bit_index += shift;
-                    return Some(bit_index);
                 }
+                self.bit_index += shift;
+                return Some(bit_index);
             }
             list_index += 1;
             self.bit_index = list_index * 64;
