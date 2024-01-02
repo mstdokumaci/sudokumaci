@@ -91,7 +91,7 @@ impl fmt::Display for BitSet {
     }
 }
 
-pub fn intersect(list1: [usize; 3], list2: [usize; 3]) -> [usize; 3] {
+pub fn intersect2(list1: [usize; 3], list2: [usize; 3]) -> [usize; 3] {
     [
         list1[0] & list2[0],
         list1[1] & list2[1],
@@ -99,16 +99,24 @@ pub fn intersect(list1: [usize; 3], list2: [usize; 3]) -> [usize; 3] {
     ]
 }
 
+pub fn intersect3(list1: [usize; 3], list2: [usize; 3], list3: [usize; 3]) -> [usize; 3] {
+    [
+        list1[0] & list2[0] & list3[0],
+        list1[1] & list2[1] & list3[1],
+        list1[2] & list2[2] & list3[2],
+    ]
+}
+
 pub struct BitSetTraverse {
     bits_list: [usize; 3],
-    index: usize,
+    bit_index: usize,
 }
 
 impl BitSetTraverse {
     pub fn new(bits_list: [usize; 3]) -> BitSetTraverse {
         BitSetTraverse {
             bits_list: bits_list,
-            index: 0,
+            bit_index: 0,
         }
     }
 }
@@ -116,17 +124,20 @@ impl BitSetTraverse {
 impl Iterator for BitSetTraverse {
     type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut i = self.index / 64;
-        while i < 3 {
-            if self.bits_list[i] != 0 {
-                let tz = self.bits_list[i].trailing_zeros() as usize;
-                self.bits_list[i] >>= tz + 1;
-                let index = self.index + tz;
-                self.index += tz + 1;
-                return Some(index);
+        let mut list_index = self.bit_index / 64;
+        while list_index < 3 {
+            if self.bits_list[list_index] != 0 {
+                let tz = self.bits_list[list_index].trailing_zeros() as usize;
+                let bit_index = self.bit_index + tz;
+                let shift = tz + 1;
+                if shift != 64 {
+                    self.bits_list[list_index] >>= shift;
+                    self.bit_index += shift;
+                    return Some(bit_index);
+                }
             }
-            i += 1;
-            self.index = i * 64;
+            list_index += 1;
+            self.bit_index = list_index * 64;
         }
         None
     }
