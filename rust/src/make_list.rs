@@ -1,8 +1,19 @@
 use crate::bitset;
 use crate::sudoku;
 
-const BIT9: [usize; 9] = sudoku::list::BIT9;
-const ALL27: usize = sudoku::list::ALL27;
+pub const ALL27: usize = 0b111111111111111111111111111;
+
+pub const BIT9: [usize; 9] = [
+    0b000000001,
+    0b000000010,
+    0b000000100,
+    0b000001000,
+    0b000010000,
+    0b000100000,
+    0b001000000,
+    0b010000000,
+    0b100000000,
+];
 
 fn get_bits_list(bits: usize) -> Vec<usize> {
     BIT9.iter()
