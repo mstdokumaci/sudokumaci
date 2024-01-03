@@ -120,41 +120,40 @@ impl Board {
     }
     fn find_match(&mut self, number_index: usize, bit_lists: [[usize; 3]; 3]) -> bool {
         let number = self.numbers[number_index];
+        let number_rows = self.number_rows[number];
         let biterator0 = bitset::BitSetTraverse::new(bit_lists[0]).into_iter();
         for row0_index in biterator0 {
-            if self.number_rows[number][0] & POSSIBLES[row0_index] == POSSIBLES[row0_index] {
+            if number_rows[0] & POSSIBLES[row0_index] == POSSIBLES[row0_index] {
                 let biterator1 = bitset::BitSetTraverse::new(bitset::intersect2(
-                    bit_lists[1],
-                    ROW_COMBINATONS[row0_index],
+                    &bit_lists[1],
+                    &ROW_COMBINATONS[row0_index],
                 ))
                 .into_iter();
                 for row1_index in biterator1 {
-                    if self.number_rows[number][1] & POSSIBLES[row1_index] == POSSIBLES[row1_index]
-                    {
+                    if number_rows[1] & POSSIBLES[row1_index] == POSSIBLES[row1_index] {
                         let biterator2 = bitset::BitSetTraverse::new(bitset::intersect3(
-                            bit_lists[2],
-                            ROW_COMBINATONS[row0_index],
-                            ROW_COMBINATONS[row1_index],
+                            &bit_lists[2],
+                            &ROW_COMBINATONS[row0_index],
+                            &ROW_COMBINATONS[row1_index],
                         ))
                         .into_iter();
                         for row2_index in biterator2 {
-                            if (self.number_rows[number][2] & POSSIBLES[row2_index]
-                                == POSSIBLES[row2_index])
+                            if (number_rows[2] & POSSIBLES[row2_index] == POSSIBLES[row2_index])
                                 && (number_index == 8
                                     || self.find_match(
                                         number_index + 1,
                                         [
                                             bitset::intersect2(
-                                                bit_lists[0],
-                                                POSSIBLE_COMBINATONS[row0_index],
+                                                &bit_lists[0],
+                                                &POSSIBLE_COMBINATONS[row0_index],
                                             ),
                                             bitset::intersect2(
-                                                bit_lists[1],
-                                                POSSIBLE_COMBINATONS[row1_index],
+                                                &bit_lists[1],
+                                                &POSSIBLE_COMBINATONS[row1_index],
                                             ),
                                             bitset::intersect2(
-                                                bit_lists[2],
-                                                POSSIBLE_COMBINATONS[row2_index],
+                                                &bit_lists[2],
+                                                &POSSIBLE_COMBINATONS[row2_index],
                                             ),
                                         ],
                                     ))

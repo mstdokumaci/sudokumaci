@@ -91,19 +91,19 @@ impl fmt::Display for BitSet {
     }
 }
 
-pub fn intersect2(list1: [usize; 3], list2: [usize; 3]) -> [usize; 3] {
+pub fn intersect2(list1: &[usize; 3], list2: &[usize; 3]) -> [usize; 3] {
     [
-        list1[0] & list2[0],
-        list1[1] & list2[1],
-        list1[2] & list2[2],
+        list1.get(0).unwrap() & list2.get(0).unwrap(),
+        list1.get(1).unwrap() & list2.get(1).unwrap(),
+        list1.get(2).unwrap() & list2.get(2).unwrap(),
     ]
 }
 
-pub fn intersect3(list1: [usize; 3], list2: [usize; 3], list3: [usize; 3]) -> [usize; 3] {
+pub fn intersect3(list1: &[usize; 3], list2: &[usize; 3], list3: &[usize; 3]) -> [usize; 3] {
     [
-        list1[0] & list2[0] & list3[0],
-        list1[1] & list2[1] & list3[1],
-        list1[2] & list2[2] & list3[2],
+        list1.get(0).unwrap() & list2.get(0).unwrap() & list3.get(0).unwrap(),
+        list1.get(1).unwrap() & list2.get(1).unwrap() & list3.get(1).unwrap(),
+        list1.get(2).unwrap() & list2.get(2).unwrap() & list3.get(2).unwrap(),
     ]
 }
 
