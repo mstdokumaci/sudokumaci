@@ -91,29 +91,32 @@ impl fmt::Display for BitSet {
     }
 }
 
-pub fn intersect2(list1: &[usize; 3], list2: &[usize; 3]) -> [usize; 3] {
-    [
-        list1.get(0).unwrap() & list2.get(0).unwrap(),
-        list1.get(1).unwrap() & list2.get(1).unwrap(),
-        list1.get(2).unwrap() & list2.get(2).unwrap(),
-    ]
+pub fn intersect2(
+    list1: &(usize, usize, usize),
+    list2: &(usize, usize, usize),
+) -> (usize, usize, usize) {
+    (list1.0 & list2.0, list1.1 & list2.1, list1.2 & list2.2)
 }
 
-pub fn intersect3(list1: &[usize; 3], list2: &[usize; 3], list3: &[usize; 3]) -> [usize; 3] {
-    [
-        list1.get(0).unwrap() & list2.get(0).unwrap() & list3.get(0).unwrap(),
-        list1.get(1).unwrap() & list2.get(1).unwrap() & list3.get(1).unwrap(),
-        list1.get(2).unwrap() & list2.get(2).unwrap() & list3.get(2).unwrap(),
-    ]
+pub fn intersect3(
+    list1: &(usize, usize, usize),
+    list2: &(usize, usize, usize),
+    list3: &(usize, usize, usize),
+) -> (usize, usize, usize) {
+    (
+        list1.0 & list2.0 & list3.0,
+        list1.1 & list2.1 & list3.1,
+        list1.2 & list2.2 & list3.2,
+    )
 }
 
 pub struct BitSetTraverse {
-    bits_list: [usize; 3],
+    bits_list: (usize, usize, usize),
     bit_index: usize,
 }
 
 impl BitSetTraverse {
-    pub fn new(bits_list: [usize; 3]) -> BitSetTraverse {
+    pub fn new(bits_list: (usize, usize, usize)) -> BitSetTraverse {
         BitSetTraverse {
             bits_list: bits_list,
             bit_index: 0,
@@ -124,21 +127,47 @@ impl BitSetTraverse {
 impl Iterator for BitSetTraverse {
     type Item = usize;
     fn next(&mut self) -> Option<Self::Item> {
-        let mut list_index = self.bit_index / 64;
-        while list_index < 3 {
-            if self.bits_list[list_index] != 0 {
-                let tz = self.bits_list[list_index].trailing_zeros() as usize;
-                let bit_index = self.bit_index + tz;
+        if self.bit_index < 64 {
+            if self.bits_list.0 == 0 {
+                self.bit_index = 64;
+            } else {
+                let mut tz = self.bits_list.0.trailing_zeros() as usize;
                 let shift = tz + 1;
-                if shift != 64 {
-                    self.bits_list[list_index] >>= shift;
+                if shift < 64 {
+                    self.bits_list.0 >>= shift;
                 }
+                tz += self.bit_index;
                 self.bit_index += shift;
-                return Some(bit_index);
+                return Some(tz);
             }
-            list_index += 1;
-            self.bit_index = list_index * 64;
         }
+
+        if self.bit_index < 128 {
+            if self.bits_list.1 == 0 {
+                self.bit_index = 128;
+            } else {
+                let mut tz = self.bits_list.1.trailing_zeros() as usize;
+                let shift = tz + 1;
+                if shift < 64 {
+                    self.bits_list.1 >>= shift;
+                }
+                tz += self.bit_index;
+                self.bit_index += shift;
+                return Some(tz);
+            }
+        }
+
+        if self.bit_index < 192 && self.bits_list.2 != 0 {
+            let mut tz = self.bits_list.2.trailing_zeros() as usize;
+            let shift = tz + 1;
+            if shift < 64 {
+                self.bits_list.2 >>= shift;
+            }
+            tz += self.bit_index;
+            self.bit_index += shift;
+            return Some(tz);
+        }
+
         None
     }
 }

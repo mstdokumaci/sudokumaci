@@ -4,8 +4,8 @@ pub mod list;
 const GROUPS: [u128; 27] = list::GROUPS;
 const SET_CELLS: [u128; 81] = list::SET_CELLS;
 const POSSIBLES: [usize; 162] = list::POSSIBLES;
-const POSSIBLE_COMBINATONS: [[usize; 3]; 162] = list::POSSIBLE_COMBINATONS;
-const ROW_COMBINATONS: [[usize; 3]; 162] = list::ROW_COMBINATONS;
+const POSSIBLE_COMBINATONS: [(usize, usize, usize); 162] = list::POSSIBLE_COMBINATONS;
+const ROW_COMBINATONS: [(usize, usize, usize); 162] = list::ROW_COMBINATONS;
 const BIT81: [u128; 81] = list::BIT81;
 const ALL81: u128 = list::ALL81;
 
@@ -44,11 +44,11 @@ impl Board {
         board.prepare();
         board.is_sudoku = board.find_match(
             0,
-            [[
+            [(
                 0b1111111111111111111111111111111111111111111111111111111111111111,
                 0b1111111111111111111111111111111111111111111111111111111111111111,
                 0b1111111111111111111111111111111111,
-            ]; 3],
+            ); 3],
         );
         assert!(board.is_sudoku);
 
@@ -118,7 +118,7 @@ impl Board {
             ]
         }
     }
-    fn find_match(&mut self, number_index: usize, bit_lists: [[usize; 3]; 3]) -> bool {
+    fn find_match(&mut self, number_index: usize, bit_lists: [(usize, usize, usize); 3]) -> bool {
         let number = self.numbers[number_index];
         let number_rows = self.number_rows[number];
         let biterator0 = bitset::BitSetTraverse::new(bit_lists[0]).into_iter();
