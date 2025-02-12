@@ -24,9 +24,8 @@ const NumberCount = struct {
 pub const Sudoku = struct {
     is_sudoku: bool = true,
     number_cells: [9]u81 = .{ALL81} ** 9,
-    numbers: [9]u8 = .{0} ** 9,
-    number_bands: [9][3]u27 = .{.{0} ** 3} ** 9,
-    number_band_matches: [9][3]u8 = .{.{0} ** 3} ** 9,
+    numbers: [9]usize = .{0} ** 9,
+    number_bands: [9][3]usize = .{.{0} ** 3} ** 9,
 
     pub fn solve(self: *Sudoku, cell_values: *const [81]u8) [81]u8 {
         var remove_from_others: [9]u81 = .{0} ** 9;
@@ -45,11 +44,10 @@ pub const Sudoku = struct {
         assert(self.find_match(0, .{ALL162} ** 3));
 
         var solved: [81]u8 = .{48} ** 81;
-        for (self.number_band_matches, 0..) |number_band_matches, number| {
-            var cells: u81 = POSSIBLES[number_band_matches[0]] | @as(u81, POSSIBLES[number_band_matches[1]]) << 27 | @as(u81, POSSIBLES[number_band_matches[2]]) << 54;
-            while (cells > 0) {
-                solved[@ctz(cells)] = @as(u8, @truncate(number)) + 49;
-                cells &= cells - 1;
+        for (&self.number_cells, 0..) |*cells, number| {
+            while (cells.* > 0) {
+                solved[@ctz(cells.*)] = @as(u8, @truncate(number)) + 49;
+                cells.* &= cells.* - 1;
             }
         }
         return solved;
@@ -101,37 +99,34 @@ pub const Sudoku = struct {
         std.mem.sort(comptime NumberCount, &number_counts, {}, comptime NumberCount.lessThan);
 
         for (number_counts, 0..) |number_count, i| {
-            self.numbers[i] = @as(u8, @truncate(number_count.number));
+            const number = number_count.number;
+            self.numbers[i] = number;
 
-            self.number_bands[number_count.number] = .{
-                @intCast(self.number_cells[number_count.number] & ALL27),
-                @intCast((self.number_cells[number_count.number] >> 27) & ALL27),
-                @intCast((self.number_cells[number_count.number] >> 54) & ALL27),
+            self.number_bands[number] = .{
+                @intCast(self.number_cells[number] & ALL27),
+                @intCast((self.number_cells[number] >> 27) & ALL27),
+                @intCast((self.number_cells[number] >> 54) & ALL27),
             };
         }
     }
 
-    fn find_match(self: *Sudoku, number_index: usize, combination_sets: [3]u162) bool {
-        const number = self.numbers[number_index];
+    fn find_match(self: *Sudoku, n_index: usize, combination_sets: [3]u162) bool {
+        const number = self.numbers[n_index];
         const number_bands = self.number_bands[number];
 
         var biterate0 = combination_sets[0];
         while (biterate0 > 0) {
             const band0_index = @ctz(biterate0);
-            if (number_bands[0] & POSSIBLES[band0_index] == POSSIBLES[band0_index] and (combination_sets[0] & NUMBER_COMBINATIONS[band0_index] > 0 or number_index == 8)) {
+            if (number_bands[0] & POSSIBLES[band0_index] == POSSIBLES[band0_index] and (combination_sets[0] & NUMBER_COMBINATIONS[band0_index] > 0 or n_index == 8)) {
                 var biterate1 = combination_sets[1] & BAND_COMBINATIONS[band0_index];
                 while (biterate1 > 0) {
                     const band1_index = @ctz(biterate1);
-                    if (number_bands[1] & POSSIBLES[band1_index] == POSSIBLES[band1_index] and (combination_sets[1] & NUMBER_COMBINATIONS[band1_index] > 0 or number_index == 8)) {
+                    if (number_bands[1] & POSSIBLES[band1_index] == POSSIBLES[band1_index] and (combination_sets[1] & NUMBER_COMBINATIONS[band1_index] > 0 or n_index == 8)) {
                         var biterate2 = combination_sets[2] & BAND_COMBINATIONS[band0_index] & BAND_COMBINATIONS[band1_index];
                         while (biterate2 > 0) {
                             const band2_index = @ctz(biterate2);
-                            if (number_bands[2] & POSSIBLES[band2_index] == POSSIBLES[band2_index] and (number_index == 8 or (combination_sets[2] & NUMBER_COMBINATIONS[band2_index] > 0 and self.find_match(number_index + 1, .{ combination_sets[0] & NUMBER_COMBINATIONS[band0_index], combination_sets[1] & NUMBER_COMBINATIONS[band1_index], combination_sets[2] & NUMBER_COMBINATIONS[band2_index] })))) {
-                                self.number_band_matches[number] = .{
-                                    @as(u8, @truncate(band0_index)),
-                                    @as(u8, @truncate(band1_index)),
-                                    @as(u8, @truncate(band2_index)),
-                                };
+                            if (number_bands[2] & POSSIBLES[band2_index] == POSSIBLES[band2_index] and (n_index == 8 or (combination_sets[2] & NUMBER_COMBINATIONS[band2_index] > 0 and self.find_match(n_index + 1, .{ combination_sets[0] & NUMBER_COMBINATIONS[band0_index], combination_sets[1] & NUMBER_COMBINATIONS[band1_index], combination_sets[2] & NUMBER_COMBINATIONS[band2_index] })))) {
+                                self.number_cells[number] = @as(u81, POSSIBLES[band0_index]) | @as(u81, POSSIBLES[band1_index]) << 27 | @as(u81, POSSIBLES[band2_index]) << 54;
                                 return true;
                             }
                             biterate2 &= biterate2 - 1;

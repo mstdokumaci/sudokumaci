@@ -1,12 +1,12 @@
 const std = @import("std");
 
-pub const ALL27: u27 = 0b111111111111111111111111111;
+pub const ALL27: usize = 0b111111111111111111111111111;
 
 pub const ALL81: u81 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 pub const ALL162: u162 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
-const BIT9 = [9]u9{
+const BIT9 = [9]usize{
     0b000000001,
     0b000000010,
     0b000000100,
@@ -18,7 +18,7 @@ const BIT9 = [9]u9{
     0b100000000,
 };
 
-const BIT27 = [27]u27{
+const BIT27 = [27]usize{
     0b000000000000000000000000001,
     0b000000000000000000000000010,
     0b000000000000000000000000100,
@@ -132,7 +132,7 @@ pub const BIT81 = [81]u81{
     0b100000000000000000000000000000000000000000000000000000000000000000000000000000000,
 };
 
-const GROUPS27 = [6]u27{
+const GROUPS27 = [6]usize{
     0b000000000000000000111111111,
     0b000000000111111111000000000,
     0b111111111000000000000000000,
@@ -171,8 +171,8 @@ pub const GROUPS81 = [27]u81{
     0b111000000111000000111000000000000000000000000000000000000000000000000000000000000,
 };
 
-fn make_set27() [27]u27 {
-    var set_cells: [27]u27 = undefined;
+fn make_set27() [27]usize {
+    var set_cells: [27]usize = undefined;
     for (0..27) |cell_index| {
         const row = cell_index / 9;
         const box = (cell_index % 9) / 3;
@@ -196,14 +196,14 @@ fn make_set81() [81]u81 {
 
 pub const SET81 = make_set81();
 
-fn make_possibles() [162]u27 {
+fn make_possibles() [162]usize {
     @setEvalBranchQuota(10000);
-    var possibles: [162]u27 = .{0} ** 162;
+    var possibles: [162]usize = .{0} ** 162;
     possibles[0] = ALL27;
     for (0..3) |row_index| {
         var index: u8 = 0;
         for (possibles) |possible| {
-            const columns: u9 = @as(u9, @truncate((possible & GROUPS27[row_index]) >> (@as(u5, @truncate(row_index)) * 9)));
+            const columns: usize = (possible & GROUPS27[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
                     possibles[index] = possible & SET27[row_index * 9 + col_index];
