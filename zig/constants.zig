@@ -219,7 +219,7 @@ pub const POSSIBLES = make_possibles();
 
 fn make_number_combinations() [162]u162 {
     @setEvalBranchQuota(100000);
-    var possible_combinations: [162]u162 = undefined;
+    var number_combinations: [162]u162 = undefined;
     for (POSSIBLES, 0..) |possible1, index1| {
         var bit_set: u162 = 0;
         for (POSSIBLES, 0..) |possible2, index2| {
@@ -227,9 +227,9 @@ fn make_number_combinations() [162]u162 {
                 bit_set |= 1 << index2;
             }
         }
-        possible_combinations[index1] = bit_set;
+        number_combinations[index1] = bit_set;
     }
-    return possible_combinations;
+    return number_combinations;
 }
 
 pub const NUMBER_COMBINATIONS = make_number_combinations();
