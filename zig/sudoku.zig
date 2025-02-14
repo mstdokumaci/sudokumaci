@@ -103,11 +103,11 @@ pub const Sudoku = struct {
             const cells = &self.number_cells[number];
             const removed = cells.* & ~remove_from_others;
             const ones = @popCount(removed);
-            if (ones < 9) {
-                self.is_sudoku = false;
-                return 0;
-            }
             if (removed != cells.*) {
+                if (ones < 9) {
+                    self.is_sudoku = false;
+                    return 0;
+                }
                 cells.* = removed;
                 for (GROUPS81) |group_mask| {
                     const group = cells.* & group_mask;
