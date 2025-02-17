@@ -17,7 +17,7 @@ pub const Sudoku = struct {
     number_cells: [9]u81 = .{ALL81} ** 9,
     numbers: usize = 0b111111111,
 
-    pub fn solve(self: *Sudoku, cell_values: *const [81]u8) [81]u8 {
+    pub fn solve(self: *Sudoku, cell_values: [81]u8) [81]u8 {
         var remove_from_others: [9]u81 = .{0} ** 9;
 
         for (cell_values, 0..) |value, cell_index| {
@@ -149,22 +149,25 @@ pub const Sudoku = struct {
         var biterate0 = band_combinations[0];
         while (biterate0 > 0) {
             const band0_index = @ctz(biterate0);
-            if (number_band0 & POSSIBLES[band0_index] == POSSIBLES[band0_index]) {
+            const possible0 = POSSIBLES[band0_index];
+            if (number_band0 & possible0 == possible0) {
                 new_band_combinations[0] = band_combinations[0] & NUMBER_COMBINATIONS[band0_index];
                 if (new_band_combinations[0] != 0 or numbers == 0) {
                     var biterate1 = band_combinations[1] & BAND_COMBINATIONS[band0_index];
                     while (biterate1 > 0) {
                         const band1_index = @ctz(biterate1);
-                        if (number_band1 & POSSIBLES[band1_index] == POSSIBLES[band1_index]) {
+                        const possible1 = POSSIBLES[band1_index];
+                        if (number_band1 & possible1 == possible1) {
                             new_band_combinations[1] = band_combinations[1] & NUMBER_COMBINATIONS[band1_index];
                             if (new_band_combinations[1] != 0 or numbers == 0) {
                                 var biterate2 = band_combinations[2] & BAND_COMBINATIONS[band0_index] & BAND_COMBINATIONS[band1_index];
                                 while (biterate2 > 0) {
                                     const band2_index = @ctz(biterate2);
-                                    if (number_band2 & POSSIBLES[band2_index] == POSSIBLES[band2_index]) {
+                                    const possible2 = POSSIBLES[band2_index];
+                                    if (number_band2 & possible2 == possible2) {
                                         new_band_combinations[2] = band_combinations[2] & NUMBER_COMBINATIONS[band2_index];
                                         if (new_band_combinations[2] != 0 or numbers == 0) {
-                                            self.number_cells[number] = @as(u81, POSSIBLES[band0_index]) | @as(u81, POSSIBLES[band1_index]) << 27 | @as(u81, POSSIBLES[band2_index]) << 54;
+                                            self.number_cells[number] = @as(u81, possible0) | @as(u81, possible1) << 27 | @as(u81, possible2) << 54;
                                             if (numbers == 0) {
                                                 return true;
                                             }
