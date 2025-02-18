@@ -8,14 +8,16 @@ const BIT9 = @import("constants.zig").BIT9;
 const BIT81 = @import("constants.zig").BIT81;
 const GROUPS81 = @import("constants.zig").GROUPS81;
 const SET81 = @import("constants.zig").SET81;
+const SET_CELL_GROUPS = @import("constants.zig").SET_CELL_GROUPS;
 const POSSIBLES = @import("constants.zig").POSSIBLES;
 const NUMBER_COMBINATIONS = @import("constants.zig").NUMBER_COMBINATIONS;
 const BAND_COMBINATIONS = @import("constants.zig").BAND_COMBINATIONS;
 
 pub const Sudoku = struct {
     is_sudoku: bool = true,
-    number_cells: [9]u81 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
     numbers: usize = 0b111111111,
+    number_cells: [9]u81 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
+    number_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
     pub fn solve(self: *Sudoku, cell_values: [81]u8) [81]u8 {
         var remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -28,9 +30,9 @@ pub const Sudoku = struct {
             }
         }
 
-        const shortest_number = self.remove_cells(remove_from_others, 0);
+        const shortest_number = self.remove_cells(remove_from_others);
         assert(self.is_sudoku);
-        assert(self.find_match(shortest_number, .{ ALL162, ALL162, ALL162 }, 0));
+        assert(self.find_match(shortest_number, .{ ALL162, ALL162, ALL162 }));
 
         var solved: [81]u8 = undefined;
         for (&self.number_cells, 0..) |*cells, number| {
@@ -43,7 +45,7 @@ pub const Sudoku = struct {
         return solved;
     }
 
-    fn remove_cells(self: *Sudoku, remove_from_others: [9]u81, existing_others_union: u81) usize {
+    fn remove_cells(self: *Sudoku, remove_from_others: [9]u81) usize {
         var shortest_length: usize = 81;
         var shortest_number: usize = 0;
         var new_remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -52,58 +54,65 @@ pub const Sudoku = struct {
         var biterate = self.numbers;
         while (biterate > 0) {
             const number = @ctz(biterate);
-            var remove_union: u81 = 0;
-            var others_union = existing_others_union;
-            for (remove_from_others, 0..) |other_remove, remove_number| {
-                if (number != remove_number) {
-                    remove_union |= other_remove;
-                    others_union |= self.number_cells[remove_number];
+            if (self.number_groups[number] > 0) {
+                var remove_union: u81 = 0;
+                var others_union: u81 = 0;
+                for (remove_from_others, 0..) |other_remove, remove_number| {
+                    if (number != remove_number) {
+                        remove_union |= other_remove;
+                        others_union |= self.number_cells[remove_number];
+                    }
                 }
-            }
-            const cells = &self.number_cells[number];
-            const removed = cells.* & ~remove_union;
-            const ones = @popCount(removed);
-            if (ones < 9) {
-                self.is_sudoku = false;
-                return 0;
-            }
-            if (removed != cells.*) {
-                cells.* = removed;
-                var others_removed: u81 = cells.* & ~others_union;
-                while (others_removed > 0) {
-                    cells.* &= SET81[@ctz(others_removed)];
-                    others_removed &= others_removed - 1;
+                const cells = &self.number_cells[number];
+                const removed = cells.* & ~remove_union;
+                const ones = @popCount(removed);
+                if (ones < 9) {
+                    self.is_sudoku = false;
+                    return 0;
                 }
-                for (GROUPS81) |group_mask| {
-                    const group = cells.* & group_mask;
-                    const group_ones = @popCount(group);
-                    if (group_ones == 0) {
-                        self.is_sudoku = false;
-                        return 0;
-                    } else if (group_ones == 1) {
-                        const set_cells = cells.* & SET81[@ctz(group)];
-                        if (set_cells != cells.*) {
-                            cells.* = set_cells;
+                if (removed != cells.*) {
+                    cells.* = removed;
+                    var others_removed: u81 = cells.* & ~others_union;
+                    while (others_removed > 0) {
+                        cells.* &= SET81[@ctz(others_removed)];
+                        others_removed &= others_removed - 1;
+                    }
+                    var number_groups = self.number_groups[number];
+                    while (number_groups > 0) {
+                        const group = cells.* & GROUPS81[@ctz(number_groups)];
+                        const group_ones = @popCount(group);
+                        if (group_ones == 0) {
+                            self.is_sudoku = false;
+                            return 0;
+                        } else if (group_ones == 1) {
+                            const cell_index = @ctz(group);
+                            cells.* &= SET81[cell_index];
+                            self.number_groups[number] &= SET_CELL_GROUPS[cell_index];
                             new_remove_from_others[number] |= group;
                             new_remove = true;
                         }
+                        number_groups &= number_groups - 1;
                     }
                 }
-            }
-            if (ones < shortest_length) {
-                shortest_length = ones;
+                if (ones < shortest_length) {
+                    shortest_length = ones;
+                    shortest_number = number;
+                }
+            } else {
+                shortest_length = 9;
                 shortest_number = number;
             }
             biterate &= biterate - 1;
         }
-        return if (new_remove) self.remove_cells(new_remove_from_others, existing_others_union) else shortest_number;
+        return if (new_remove) self.remove_cells(new_remove_from_others) else shortest_number;
     }
 
-    fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u162, existing_others_union: u81) bool {
+    fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u162) bool {
         self.numbers ^= BIT9[number];
 
         const numbers = self.numbers;
         const number_cells = self.number_cells;
+        const number_groups = self.number_groups;
 
         const number_band0: usize = @as(usize, @truncate(number_cells[number] & ALL27));
         const number_band1: usize = @as(usize, @truncate(number_cells[number] >> 27 & ALL27));
@@ -136,16 +145,16 @@ pub const Sudoku = struct {
                                             if (numbers == 0) {
                                                 return true;
                                             }
-                                            const new_others_union = existing_others_union | self.number_cells[number];
                                             var remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                                             remove_from_others[number] = self.number_cells[number];
-                                            const shortest_number = self.remove_cells(remove_from_others, new_others_union);
-                                            if (self.is_sudoku and self.find_match(shortest_number, new_band_combinations, new_others_union)) {
+                                            const shortest_number = self.remove_cells(remove_from_others);
+                                            if (self.is_sudoku and self.find_match(shortest_number, new_band_combinations)) {
                                                 return true;
                                             } else {
                                                 self.is_sudoku = true;
                                                 self.numbers = numbers;
                                                 self.number_cells = number_cells;
+                                                self.number_groups = number_groups;
                                             }
                                         }
                                     }

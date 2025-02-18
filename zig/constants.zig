@@ -196,6 +196,18 @@ fn make_set81() [81]u81 {
 
 pub const SET81 = make_set81();
 
+fn make_set_cell_groups() [81]usize {
+    var cell_groups: [81]usize = undefined;
+    for (0..81) |cell_index| {
+        const row = cell_index / 9;
+        const col = cell_index % 9;
+        const box = (row / 3) * 3 + (col / 3);
+        cell_groups[cell_index] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
+    }
+    return cell_groups;
+}
+pub const SET_CELL_GROUPS = make_set_cell_groups();
+
 fn make_possibles() [162]usize {
     @setEvalBranchQuota(10000);
     var possibles: [162]usize = .{0} ** 162;
