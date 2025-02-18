@@ -16,11 +16,11 @@ const BAND_COMBINATIONS = @import("constants.zig").BAND_COMBINATIONS;
 pub const Sudoku = struct {
     is_sudoku: bool = true,
     numbers: usize = 0b111111111,
-    number_cells: [9]u81 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
+    number_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
     number_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
     pub fn solve(self: *Sudoku, cell_values: [81]u8) [81]u8 {
-        var remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        var remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         for (cell_values, 0..) |value, cell_index| {
             if (value > 48) {
@@ -45,18 +45,18 @@ pub const Sudoku = struct {
         return solved;
     }
 
-    fn remove_cells(self: *Sudoku, remove_from_others: [9]u81) usize {
+    fn remove_cells(self: *Sudoku, remove_from_others: [9]u128) usize {
         var shortest_length: usize = 81;
         var shortest_number: usize = 0;
-        var new_remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        var new_remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         var new_remove = false;
 
         var biterate = self.numbers;
         while (biterate > 0) {
             const number = @ctz(biterate);
             if (self.number_groups[number] > 0) {
-                var remove_union: u81 = 0;
-                var others_union: u81 = 0;
+                var remove_union: u128 = 0;
+                var others_union: u128 = 0;
                 for (remove_from_others, 0..) |other_remove, remove_number| {
                     if (number != remove_number) {
                         remove_union |= other_remove;
@@ -72,7 +72,7 @@ pub const Sudoku = struct {
                 }
                 if (removed != cells.*) {
                     cells.* = removed;
-                    var others_removed: u81 = cells.* & ~others_union;
+                    var others_removed: u128 = cells.* & ~others_union;
                     while (others_removed > 0) {
                         cells.* &= SET81[@ctz(others_removed)];
                         others_removed &= others_removed - 1;
@@ -107,7 +107,7 @@ pub const Sudoku = struct {
         return if (new_remove) self.remove_cells(new_remove_from_others) else shortest_number;
     }
 
-    fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u162) bool {
+    fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u192) bool {
         self.numbers ^= BIT9[number];
 
         const numbers = self.numbers;
@@ -118,7 +118,7 @@ pub const Sudoku = struct {
         const number_band1: usize = @as(usize, @truncate(number_cells[number] >> 27 & ALL27));
         const number_band2: usize = @as(usize, @truncate(number_cells[number] >> 54 & ALL27));
 
-        var new_band_combinations: [3]u162 = undefined;
+        var new_band_combinations: [3]u192 = undefined;
 
         var biterate0 = band_combinations[0];
         while (biterate0 > 0) {
@@ -141,11 +141,11 @@ pub const Sudoku = struct {
                                     if (number_band2 & possible2 == possible2) {
                                         new_band_combinations[2] = band_combinations[2] & NUMBER_COMBINATIONS[band2_index];
                                         if (new_band_combinations[2] != 0 or numbers == 0) {
-                                            self.number_cells[number] = @as(u81, possible0) | @as(u81, possible1) << 27 | @as(u81, possible2) << 54;
+                                            self.number_cells[number] = @as(u128, possible0) | @as(u128, possible1) << 27 | @as(u128, possible2) << 54;
                                             if (numbers == 0) {
                                                 return true;
                                             }
-                                            var remove_from_others: [9]u81 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                                            var remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                                             remove_from_others[number] = self.number_cells[number];
                                             const shortest_number = self.remove_cells(remove_from_others);
                                             if (self.is_sudoku and self.find_match(shortest_number, new_band_combinations)) {

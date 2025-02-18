@@ -4,7 +4,7 @@ pub const ALL27: usize = 0b111111111111111111111111111;
 
 pub const ALL81: u81 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
-pub const ALL162: u162 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
+pub const ALL162: u192 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 pub const BIT9 = [9]usize{
     0b000000001,
@@ -229,11 +229,11 @@ fn make_possibles() [162]usize {
 
 pub const POSSIBLES = make_possibles();
 
-fn make_number_combinations() [162]u162 {
+fn make_number_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
-    var number_combinations: [162]u162 = undefined;
+    var number_combinations: [162]u192 = undefined;
     for (POSSIBLES, 0..) |possible1, index1| {
-        var bit_set: u162 = 0;
+        var bit_set: u192 = 0;
         for (POSSIBLES, 0..) |possible2, index2| {
             if (possible1 & possible2 == 0) {
                 bit_set |= 1 << index2;
@@ -246,11 +246,11 @@ fn make_number_combinations() [162]u162 {
 
 pub const NUMBER_COMBINATIONS = make_number_combinations();
 
-fn make_band_combinations() [162]u162 {
+fn make_band_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
-    var row_combinations: [162]u162 = undefined;
+    var row_combinations: [162]u192 = undefined;
     for (POSSIBLES, 0..) |possible1, index1| {
-        var bit_set: u162 = 0;
+        var bit_set: u192 = 0;
         for (POSSIBLES, 0..) |possible2, index2| {
             const row1 = possible1 | possible1 >> 9 | possible1 >> 18;
             const row2 = possible2 | possible2 >> 9 | possible2 >> 18;
