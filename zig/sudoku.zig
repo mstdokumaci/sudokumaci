@@ -114,9 +114,9 @@ pub const Sudoku = struct {
         const number_cells = self.number_cells;
         const number_groups = self.number_groups;
 
-        const number_band0: usize = @as(usize, @truncate(number_cells[number] & ALL27));
-        const number_band1: usize = @as(usize, @truncate(number_cells[number] >> 27 & ALL27));
-        const number_band2: usize = @as(usize, @truncate(number_cells[number] >> 54 & ALL27));
+        const number_band0: usize = @truncate(number_cells[number] & ALL27);
+        const number_band1: usize = @truncate(number_cells[number] >> 27 & ALL27);
+        const number_band2: usize = @truncate(number_cells[number] >> 54 & ALL27);
 
         var new_band_combinations: [3]u192 = undefined;
 
