@@ -13,10 +13,10 @@ fn solve(thread_index: usize, batch_size: usize, count: usize, results: *std.Arr
             var sudoku = Sudoku{};
             const result_index = puzzle_index * 164;
             results.*.items[result_index + 81] = ',';
-            @memcpy(results.*.items[result_index + 82 ..], &sudoku.solve(std.mem.bytesToValue([81]u8, results.*.items[result_index .. result_index + 81])));
+            @memcpy(results.*.items[result_index + 82 ..], &sudoku.solve(results.*.items[result_index .. result_index + 81]));
             results.*.items[result_index + 163] = '\n';
         }
-        const new_thread_index = @atomicRmw(usize, &next_thread_index, AtomicRmwOp.Add, 1, AtomicOrder.seq_cst);
+        const new_thread_index = @atomicRmw(usize, &next_thread_index, AtomicRmwOp.Add, 1, AtomicOrder.monotonic);
         start = new_thread_index * batch_size;
     }
 }
@@ -52,7 +52,7 @@ pub fn main() !void {
     }
 
     const thread_count = try std.Thread.getCpuCount();
-    const batch_size: usize = @min(count / thread_count + 1, 50);
+    const batch_size: usize = @min(count / thread_count + 1, 64);
     next_thread_index = thread_count;
 
     {

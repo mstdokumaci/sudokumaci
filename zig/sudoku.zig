@@ -19,7 +19,7 @@ pub const Sudoku = struct {
     number_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
     number_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
-    pub fn solve(self: *Sudoku, cell_values: [81]u8) [81]u8 {
+    pub fn solve(self: *Sudoku, cell_values: []const u8) [81]u8 {
         var remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         for (cell_values, 0..) |value, cell_index| {
