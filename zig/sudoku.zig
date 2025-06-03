@@ -72,10 +72,10 @@ pub const Sudoku = struct {
                 }
                 if (removed != cells.*) {
                     cells.* = removed;
-                    var others_removed: u128 = cells.* & ~others_union;
-                    while (others_removed > 0) {
-                        cells.* &= SET81[@ctz(others_removed)];
-                        others_removed &= others_removed - 1;
+                    var hidden_singles: u128 = cells.* & ~others_union;
+                    while (hidden_singles > 0) {
+                        cells.* &= SET81[@ctz(hidden_singles)];
+                        hidden_singles &= hidden_singles - 1;
                     }
                     var number_groups = self.number_groups[number];
                     while (number_groups > 0) {
