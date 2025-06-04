@@ -99,7 +99,7 @@ pub const Sudoku = struct {
                     shortest_number = number;
                 }
             } else {
-                shortest_length = 9;
+                self.numbers &= ~BIT9[number];
                 shortest_number = number;
             }
             biterate &= biterate - 1;
@@ -108,7 +108,7 @@ pub const Sudoku = struct {
     }
 
     fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u192) bool {
-        self.numbers ^= BIT9[number];
+        self.numbers &= ~BIT9[number];
 
         const numbers = self.numbers;
         const number_cells = self.number_cells;
