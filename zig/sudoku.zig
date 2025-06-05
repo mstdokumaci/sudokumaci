@@ -46,7 +46,7 @@ pub const Sudoku = struct {
     }
 
     fn remove_cells(self: *Sudoku, placements_to_propagate: [9]u128) usize {
-        var min_digit_locations: usize = 81;
+        var min_candidate_locations: usize = 81;
         var most_constrained_digit_index: usize = 0;
         var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         var have_new_placements = false;
@@ -55,51 +55,51 @@ pub const Sudoku = struct {
         while (pending_digits_biterate > 0) {
             const digit_index = @ctz(pending_digits_biterate);
             if (self.pending_digit_groups[digit_index] > 0) {
-                var remove_union: u128 = 0;
-                var others_union: u128 = 0;
-                for (placements_to_propagate, 0..) |other_remove, remove_digit_index| {
-                    if (digit_index != remove_digit_index) {
-                        remove_union |= other_remove;
-                        others_union |= self.digit_candidate_cells[remove_digit_index];
+                var remove_cells_for_digit: u128 = 0;
+                var other_digits_candidates_union: u128 = 0;
+                for (placements_to_propagate, 0..) |placements, placement_digit_index| {
+                    if (digit_index != placement_digit_index) {
+                        remove_cells_for_digit |= placements;
+                        other_digits_candidates_union |= self.digit_candidate_cells[placement_digit_index];
                     }
                 }
-                const cells = &self.digit_candidate_cells[digit_index];
-                const removed = cells.* & ~remove_union;
-                const ones = @popCount(removed);
-                if (ones < 9) {
+                const digit_candidate_cells = &self.digit_candidate_cells[digit_index];
+                const pruned_digit_candidate_cells = digit_candidate_cells.* & ~remove_cells_for_digit;
+                const candidate_locations_count = @popCount(pruned_digit_candidate_cells);
+                if (candidate_locations_count < 9) {
                     self.is_sudoku = false;
                     return 0;
                 }
-                if (removed != cells.*) {
-                    cells.* = removed;
-                    var hidden_singles: u128 = cells.* & ~others_union;
-                    while (hidden_singles > 0) {
-                        cells.* &= SET81[@ctz(hidden_singles)];
-                        hidden_singles &= hidden_singles - 1;
+                if (pruned_digit_candidate_cells != digit_candidate_cells.*) {
+                    digit_candidate_cells.* = pruned_digit_candidate_cells;
+                    var hidden_singles_biterate: u128 = digit_candidate_cells.* & ~other_digits_candidates_union;
+                    while (hidden_singles_biterate > 0) {
+                        digit_candidate_cells.* &= SET81[@ctz(hidden_singles_biterate)];
+                        hidden_singles_biterate &= hidden_singles_biterate - 1;
                     }
                     var pending_digit_groups = self.pending_digit_groups[digit_index];
                     while (pending_digit_groups > 0) {
-                        const group = cells.* & GROUPS81[@ctz(pending_digit_groups)];
-                        const group_ones = @popCount(group);
-                        if (group_ones == 0) {
+                        const digit_candidates_in_group = digit_candidate_cells.* & GROUPS81[@ctz(pending_digit_groups)];
+                        const digit_candidate_count_in_group = @popCount(digit_candidates_in_group);
+                        if (digit_candidate_count_in_group == 0) {
                             self.is_sudoku = false;
                             return 0;
-                        } else if (group_ones == 1) {
-                            const cell_index = @ctz(group);
-                            cells.* &= SET81[cell_index];
-                            self.pending_digit_groups[digit_index] &= SET_CELL_GROUPS[cell_index];
-                            new_placements[digit_index] |= group;
+                        } else if (digit_candidate_count_in_group == 1) {
+                            const placed_cell_index = @ctz(digit_candidates_in_group);
+                            digit_candidate_cells.* &= SET81[placed_cell_index];
+                            self.pending_digit_groups[digit_index] &= SET_CELL_GROUPS[placed_cell_index];
+                            new_placements[digit_index] |= digit_candidates_in_group;
                             have_new_placements = true;
                         }
                         pending_digit_groups &= pending_digit_groups - 1;
                     }
                 }
-                if (ones < min_digit_locations) {
-                    min_digit_locations = ones;
+                if (candidate_locations_count < min_candidate_locations) {
+                    min_candidate_locations = candidate_locations_count;
                     most_constrained_digit_index = digit_index;
                 }
             } else {
-                min_digit_locations = 9;
+                min_candidate_locations = 9;
                 most_constrained_digit_index = digit_index;
             }
             pending_digits_biterate &= pending_digits_biterate - 1;
