@@ -124,23 +124,23 @@ pub const Sudoku = struct {
 
         var new_band_combinations: [3]u192 = undefined;
 
-        var biterate0 = band_combinations[0];
-        while (biterate0 > 0) {
-            const band0_index = @ctz(biterate0);
+        var ban_combinations0_biterate = band_combinations[0];
+        while (ban_combinations0_biterate > 0) {
+            const band0_index = @ctz(ban_combinations0_biterate);
             const possible0 = POSSIBLES[band0_index];
             if (number_band0 & possible0 == possible0) {
                 new_band_combinations[0] = band_combinations[0] & NUMBER_COMBINATIONS[band0_index];
                 if (new_band_combinations[0] != 0 or pending_digits == 0) {
-                    var biterate1 = band_combinations[1] & BAND_COMBINATIONS[band0_index];
-                    while (biterate1 > 0) {
-                        const band1_index = @ctz(biterate1);
+                    var band_combinations1_biterate = band_combinations[1] & BAND_COMBINATIONS[band0_index];
+                    while (band_combinations1_biterate > 0) {
+                        const band1_index = @ctz(band_combinations1_biterate);
                         const possible1 = POSSIBLES[band1_index];
                         if (number_band1 & possible1 == possible1) {
                             new_band_combinations[1] = band_combinations[1] & NUMBER_COMBINATIONS[band1_index];
                             if (new_band_combinations[1] != 0 or pending_digits == 0) {
-                                var biterate2 = band_combinations[2] & BAND_COMBINATIONS[band0_index] & BAND_COMBINATIONS[band1_index];
-                                while (biterate2 > 0) {
-                                    const band2_index = @ctz(biterate2);
+                                var band_combinations2_biterate = band_combinations[2] & BAND_COMBINATIONS[band0_index] & BAND_COMBINATIONS[band1_index];
+                                while (band_combinations2_biterate > 0) {
+                                    const band2_index = @ctz(band_combinations2_biterate);
                                     const possible2 = POSSIBLES[band2_index];
                                     if (number_band2 & possible2 == possible2) {
                                         new_band_combinations[2] = band_combinations[2] & NUMBER_COMBINATIONS[band2_index];
@@ -162,15 +162,15 @@ pub const Sudoku = struct {
                                             }
                                         }
                                     }
-                                    biterate2 &= biterate2 - 1;
+                                    band_combinations2_biterate &= band_combinations2_biterate - 1;
                                 }
                             }
                         }
-                        biterate1 &= biterate1 - 1;
+                        band_combinations1_biterate &= band_combinations1_biterate - 1;
                     }
                 }
             }
-            biterate0 &= biterate0 - 1;
+            ban_combinations0_biterate &= ban_combinations0_biterate - 1;
         }
         return false;
     }
