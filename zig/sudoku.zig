@@ -6,9 +6,9 @@ const ALL81 = @import("constants.zig").ALL81;
 const ALL162 = @import("constants.zig").ALL162;
 const BIT9 = @import("constants.zig").BIT9;
 const BIT81 = @import("constants.zig").BIT81;
-const GROUPS81 = @import("constants.zig").GROUPS81;
+const BOARD_HOUSES = @import("constants.zig").BOARD_HOUSES;
 const SET81 = @import("constants.zig").SET81;
-const SET_CELL_GROUPS = @import("constants.zig").SET_CELL_GROUPS;
+const SET_CELL_HOUSES = @import("constants.zig").SET_CELL_HOUSES;
 const POSSIBLES = @import("constants.zig").POSSIBLES;
 const NUMBER_COMBINATIONS = @import("constants.zig").NUMBER_COMBINATIONS;
 const BAND_COMBINATIONS = @import("constants.zig").BAND_COMBINATIONS;
@@ -17,7 +17,7 @@ pub const Sudoku = struct {
     is_sudoku: bool = true,
     pending_digits: usize = 0b111111111,
     digit_candidate_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
-    pending_digit_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
+    pending_digit_houses: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
     pub fn solve(self: *Sudoku, cell_values: []const u8) [81]u8 {
         var initial_fixed_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -54,7 +54,7 @@ pub const Sudoku = struct {
         var pending_digits_biterate = self.pending_digits;
         while (pending_digits_biterate > 0) {
             const digit_index = @ctz(pending_digits_biterate);
-            if (self.pending_digit_groups[digit_index] > 0) {
+            if (self.pending_digit_houses[digit_index] > 0) {
                 var remove_cells_for_digit: u128 = 0;
                 var other_digits_candidates_union: u128 = 0;
                 for (placements_to_propagate, 0..) |placements, placement_digit_index| {
@@ -77,21 +77,21 @@ pub const Sudoku = struct {
                         digit_candidate_cells.* &= SET81[@ctz(hidden_singles_biterate)];
                         hidden_singles_biterate &= hidden_singles_biterate - 1;
                     }
-                    var pending_digit_groups = self.pending_digit_groups[digit_index];
-                    while (pending_digit_groups > 0) {
-                        const digit_candidates_in_group = digit_candidate_cells.* & GROUPS81[@ctz(pending_digit_groups)];
-                        const digit_candidate_count_in_group = @popCount(digit_candidates_in_group);
-                        if (digit_candidate_count_in_group == 0) {
+                    var pending_digit_houses = self.pending_digit_houses[digit_index];
+                    while (pending_digit_houses > 0) {
+                        const digit_candidates_in_house = digit_candidate_cells.* & BOARD_HOUSES[@ctz(pending_digit_houses)];
+                        const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
+                        if (digit_candidate_count_in_house == 0) {
                             self.is_sudoku = false;
                             return 0;
-                        } else if (digit_candidate_count_in_group == 1) {
-                            const placed_cell_index = @ctz(digit_candidates_in_group);
+                        } else if (digit_candidate_count_in_house == 1) {
+                            const placed_cell_index = @ctz(digit_candidates_in_house);
                             digit_candidate_cells.* &= SET81[placed_cell_index];
-                            self.pending_digit_groups[digit_index] &= SET_CELL_GROUPS[placed_cell_index];
-                            new_placements[digit_index] |= digit_candidates_in_group;
+                            self.pending_digit_houses[digit_index] &= SET_CELL_HOUSES[placed_cell_index];
+                            new_placements[digit_index] |= digit_candidates_in_house;
                             have_new_placements = true;
                         }
-                        pending_digit_groups &= pending_digit_groups - 1;
+                        pending_digit_houses &= pending_digit_houses - 1;
                     }
                 }
                 if (candidate_locations_count < min_candidate_locations) {
@@ -110,13 +110,13 @@ pub const Sudoku = struct {
     fn find_match(self: *Sudoku, digit_index: usize, band_combinations: [3]u192) bool {
         self.pending_digits &= ~BIT9[digit_index];
 
-        if (self.pending_digits == 0 and self.pending_digit_groups[digit_index] == 0) {
+        if (self.pending_digits == 0 and self.pending_digit_houses[digit_index] == 0) {
             return true;
         }
 
         const pending_digits = self.pending_digits;
         const digit_candidate_cells = self.digit_candidate_cells;
-        const pending_digit_groups = self.pending_digit_groups;
+        const pending_digit_houses = self.pending_digit_houses;
 
         const number_band0: usize = @truncate(digit_candidate_cells[digit_index] & ALL27);
         const number_band1: usize = @truncate(digit_candidate_cells[digit_index] >> 27 & ALL27);
@@ -158,7 +158,7 @@ pub const Sudoku = struct {
                                                 self.is_sudoku = true;
                                                 self.pending_digits = pending_digits;
                                                 self.digit_candidate_cells = digit_candidate_cells;
-                                                self.pending_digit_groups = pending_digit_groups;
+                                                self.pending_digit_houses = pending_digit_houses;
                                             }
                                         }
                                     }

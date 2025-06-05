@@ -132,7 +132,7 @@ pub const BIT81 = [81]u81{
     0b100000000000000000000000000000000000000000000000000000000000000000000000000000000,
 };
 
-const GROUPS27 = [6]usize{
+const BAND_HOUSES = [6]usize{
     0b000000000000000000111111111,
     0b000000000111111111000000000,
     0b111111111000000000000000000,
@@ -141,7 +141,7 @@ const GROUPS27 = [6]usize{
     0b111000000111000000111000000,
 };
 
-pub const GROUPS81 = [27]u81{
+pub const BOARD_HOUSES = [27]u81{
     0b000000000000000000000000000000000000000000000000000000000000000000000000111111111,
     0b000000000000000000000000000000000000000000000000000000000000000111111111000000000,
     0b000000000000000000000000000000000000000000000000000000111111111000000000000000000,
@@ -171,51 +171,51 @@ pub const GROUPS81 = [27]u81{
     0b111000000111000000111000000000000000000000000000000000000000000000000000000000000,
 };
 
-fn make_set27() [27]usize {
+fn generate_set27() [27]usize {
     var set_cells: [27]usize = undefined;
     for (0..27) |cell_index| {
         const row = cell_index / 9;
         const box = (cell_index % 9) / 3;
-        set_cells[cell_index] = ((GROUPS27[row] | GROUPS27[box + 3]) ^ ALL27) | BIT27[cell_index];
+        set_cells[cell_index] = ((BAND_HOUSES[row] | BAND_HOUSES[box + 3]) ^ ALL27) | BIT27[cell_index];
     }
     return set_cells;
 }
 
-const SET27 = make_set27();
+const SET27 = generate_set27();
 
-fn make_set81() [81]u81 {
+fn generate_set81() [81]u81 {
     var set_cells: [81]u81 = undefined;
     for (0..81) |cell_index| {
         const row = cell_index / 9;
         const col = cell_index % 9;
         const box = (row / 3) * 3 + (col / 3);
-        set_cells[cell_index] = ((GROUPS81[row] | GROUPS81[col + 9] | GROUPS81[box + 18]) ^ ALL81) | BIT81[cell_index];
+        set_cells[cell_index] = ((BOARD_HOUSES[row] | BOARD_HOUSES[col + 9] | BOARD_HOUSES[box + 18]) ^ ALL81) | BIT81[cell_index];
     }
     return set_cells;
 }
 
-pub const SET81 = make_set81();
+pub const SET81 = generate_set81();
 
-fn make_set_cell_groups() [81]usize {
-    var cell_groups: [81]usize = undefined;
+fn generate_set_cell_houses() [81]usize {
+    var cell_houses: [81]usize = undefined;
     for (0..81) |cell_index| {
         const row = cell_index / 9;
         const col = cell_index % 9;
         const box = (row / 3) * 3 + (col / 3);
-        cell_groups[cell_index] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
+        cell_houses[cell_index] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
     }
-    return cell_groups;
+    return cell_houses;
 }
-pub const SET_CELL_GROUPS = make_set_cell_groups();
+pub const SET_CELL_HOUSES = generate_set_cell_houses();
 
-fn make_possibles() [162]usize {
+fn generate_possibles() [162]usize {
     @setEvalBranchQuota(10000);
     var possibles: [162]usize = .{0} ** 162;
     possibles[0] = ALL27;
     for (0..3) |row_index| {
         var index: u8 = 0;
         for (possibles) |possible| {
-            const columns: usize = (possible & GROUPS27[row_index]) >> row_index * 9;
+            const columns: usize = (possible & BAND_HOUSES[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
                     possibles[index] = possible & SET27[row_index * 9 + col_index];
@@ -227,9 +227,9 @@ fn make_possibles() [162]usize {
     return possibles;
 }
 
-pub const POSSIBLES = make_possibles();
+pub const POSSIBLES = generate_possibles();
 
-fn make_number_combinations() [162]u192 {
+fn generate_number_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var number_combinations: [162]u192 = undefined;
     for (POSSIBLES, 0..) |possible1, index1| {
@@ -244,9 +244,9 @@ fn make_number_combinations() [162]u192 {
     return number_combinations;
 }
 
-pub const NUMBER_COMBINATIONS = make_number_combinations();
+pub const NUMBER_COMBINATIONS = generate_number_combinations();
 
-fn make_band_combinations() [162]u192 {
+fn generate_band_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var row_combinations: [162]u192 = undefined;
     for (POSSIBLES, 0..) |possible1, index1| {
@@ -263,4 +263,4 @@ fn make_band_combinations() [162]u192 {
     return row_combinations;
 }
 
-pub const BAND_COMBINATIONS = make_band_combinations();
+pub const BAND_COMBINATIONS = generate_band_combinations();
