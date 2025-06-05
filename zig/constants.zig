@@ -132,7 +132,7 @@ pub const BIT81 = [81]u81{
     0b100000000000000000000000000000000000000000000000000000000000000000000000000000000,
 };
 
-const BAND_HOUSES = [6]usize{
+const BAND_HOUSE_CELLS = [6]usize{
     0b000000000000000000111111111,
     0b000000000111111111000000000,
     0b111111111000000000000000000,
@@ -141,7 +141,7 @@ const BAND_HOUSES = [6]usize{
     0b111000000111000000111000000,
 };
 
-pub const BOARD_HOUSES = [27]u81{
+pub const HOUSE_CELLS = [27]u81{
     0b000000000000000000000000000000000000000000000000000000000000000000000000111111111,
     0b000000000000000000000000000000000000000000000000000000000000000111111111000000000,
     0b000000000000000000000000000000000000000000000000000000111111111000000000000000000,
@@ -171,42 +171,42 @@ pub const BOARD_HOUSES = [27]u81{
     0b111000000111000000111000000000000000000000000000000000000000000000000000000000000,
 };
 
-fn generate_set27() [27]usize {
-    var set_cells: [27]usize = undefined;
+fn generate_clear_band_houses() [27]usize {
+    var clear_band_houses: [27]usize = undefined;
     for (0..27) |cell_index| {
         const row = cell_index / 9;
         const box = (cell_index % 9) / 3;
-        set_cells[cell_index] = ((BAND_HOUSES[row] | BAND_HOUSES[box + 3]) ^ ALL27) | BIT27[cell_index];
+        clear_band_houses[cell_index] = ((BAND_HOUSE_CELLS[row] | BAND_HOUSE_CELLS[box + 3]) ^ ALL27) | BIT27[cell_index];
     }
-    return set_cells;
+    return clear_band_houses;
 }
 
-const SET27 = generate_set27();
+const CLEAR_BAND_HOUSES = generate_clear_band_houses();
 
-fn generate_set81() [81]u81 {
-    var set_cells: [81]u81 = undefined;
+fn generate_clear_houses() [81]u81 {
+    var clear_houses: [81]u81 = undefined;
     for (0..81) |cell_index| {
         const row = cell_index / 9;
         const col = cell_index % 9;
         const box = (row / 3) * 3 + (col / 3);
-        set_cells[cell_index] = ((BOARD_HOUSES[row] | BOARD_HOUSES[col + 9] | BOARD_HOUSES[box + 18]) ^ ALL81) | BIT81[cell_index];
+        clear_houses[cell_index] = ((HOUSE_CELLS[row] | HOUSE_CELLS[col + 9] | HOUSE_CELLS[box + 18]) ^ ALL81) | BIT81[cell_index];
     }
-    return set_cells;
+    return clear_houses;
 }
 
-pub const SET81 = generate_set81();
+pub const CLEAR_HOUSES = generate_clear_houses();
 
-fn generate_set_cell_houses() [81]usize {
-    var cell_houses: [81]usize = undefined;
+fn generate_clear_house_indexes() [81]usize {
+    var celar_house_indexes: [81]usize = undefined;
     for (0..81) |cell_index| {
         const row = cell_index / 9;
         const col = cell_index % 9;
         const box = (row / 3) * 3 + (col / 3);
-        cell_houses[cell_index] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
+        celar_house_indexes[cell_index] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
     }
-    return cell_houses;
+    return celar_house_indexes;
 }
-pub const SET_CELL_HOUSES = generate_set_cell_houses();
+pub const CLEAR_HOUSE_INDEXES = generate_clear_house_indexes();
 
 fn generate_valid_band_cells() [162]usize {
     @setEvalBranchQuota(10000);
@@ -215,10 +215,10 @@ fn generate_valid_band_cells() [162]usize {
     for (0..3) |row_index| {
         var index: u8 = 0;
         for (valid_band_cells) |band_cells| {
-            const columns: usize = (band_cells & BAND_HOUSES[row_index]) >> row_index * 9;
+            const columns: usize = (band_cells & BAND_HOUSE_CELLS[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
-                    valid_band_cells[index] = band_cells & SET27[row_index * 9 + col_index];
+                    valid_band_cells[index] = band_cells & CLEAR_BAND_HOUSES[row_index * 9 + col_index];
                     index += 1;
                 }
             }
