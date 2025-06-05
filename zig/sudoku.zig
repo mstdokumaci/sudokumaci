@@ -51,9 +51,9 @@ pub const Sudoku = struct {
         var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         var have_new_placements = false;
 
-        var pending_digits_biterate = self.pending_digits;
-        while (pending_digits_biterate > 0) {
-            const digit_index = @ctz(pending_digits_biterate);
+        var digits_biterate = self.pending_digits;
+        while (digits_biterate > 0) {
+            const digit_index = @ctz(digits_biterate);
             if (self.pending_digit_houses[digit_index] > 0) {
                 var remove_cells_for_digit: u128 = 0;
                 var other_digits_candidates_union: u128 = 0;
@@ -77,9 +77,9 @@ pub const Sudoku = struct {
                         digit_candidate_cells.* &= SET81[@ctz(hidden_singles_biterate)];
                         hidden_singles_biterate &= hidden_singles_biterate - 1;
                     }
-                    var pending_digit_houses = self.pending_digit_houses[digit_index];
-                    while (pending_digit_houses > 0) {
-                        const digit_candidates_in_house = digit_candidate_cells.* & BOARD_HOUSES[@ctz(pending_digit_houses)];
+                    var houses_biterate = self.pending_digit_houses[digit_index];
+                    while (houses_biterate > 0) {
+                        const digit_candidates_in_house = digit_candidate_cells.* & BOARD_HOUSES[@ctz(houses_biterate)];
                         const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
                         if (digit_candidate_count_in_house == 0) {
                             self.is_sudoku = false;
@@ -91,7 +91,7 @@ pub const Sudoku = struct {
                             new_placements[digit_index] |= digit_candidates_in_house;
                             have_new_placements = true;
                         }
-                        pending_digit_houses &= pending_digit_houses - 1;
+                        houses_biterate &= houses_biterate - 1;
                     }
                 }
                 if (candidate_locations_count < min_candidate_locations) {
@@ -102,7 +102,7 @@ pub const Sudoku = struct {
                 min_candidate_locations = 9;
                 most_constrained_digit_index = digit_index;
             }
-            pending_digits_biterate &= pending_digits_biterate - 1;
+            digits_biterate &= digits_biterate - 1;
         }
         return if (have_new_placements) self.remove_cells(new_placements) else most_constrained_digit_index;
     }
@@ -118,31 +118,31 @@ pub const Sudoku = struct {
         const digit_candidate_cells = self.digit_candidate_cells;
         const pending_digit_houses = self.pending_digit_houses;
 
-        const number_band0: usize = @truncate(digit_candidate_cells[digit_index] & ALL27);
-        const number_band1: usize = @truncate(digit_candidate_cells[digit_index] >> 27 & ALL27);
-        const number_band2: usize = @truncate(digit_candidate_cells[digit_index] >> 54 & ALL27);
+        const digit_band0: usize = @truncate(digit_candidate_cells[digit_index] & ALL27);
+        const digit_band1: usize = @truncate(digit_candidate_cells[digit_index] >> 27 & ALL27);
+        const digit_band2: usize = @truncate(digit_candidate_cells[digit_index] >> 54 & ALL27);
 
         var new_band_combinations: [3]u192 = undefined;
 
-        var band0_combinations_biterate = band_combinations[0];
-        while (band0_combinations_biterate > 0) {
-            const band0_index = @ctz(band0_combinations_biterate);
+        var band0_biterate = band_combinations[0];
+        while (band0_biterate > 0) {
+            const band0_index = @ctz(band0_biterate);
             const band0_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band0_index];
-            if (number_band0 & band0_valid_digit_cells == band0_valid_digit_cells) {
+            if (digit_band0 & band0_valid_digit_cells == band0_valid_digit_cells) {
                 new_band_combinations[0] = band_combinations[0] & DIGIT_BAND_COMBINATIONS[band0_index];
                 if (new_band_combinations[0] != 0 or pending_digits == 0) {
-                    var band1_combinations_biterate = band_combinations[1] & BOARD_BAND_COMBINATIONS[band0_index];
-                    while (band1_combinations_biterate > 0) {
-                        const band1_index = @ctz(band1_combinations_biterate);
+                    var band1_biterate = band_combinations[1] & BOARD_BAND_COMBINATIONS[band0_index];
+                    while (band1_biterate > 0) {
+                        const band1_index = @ctz(band1_biterate);
                         const band1_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band1_index];
-                        if (number_band1 & band1_valid_digit_cells == band1_valid_digit_cells) {
+                        if (digit_band1 & band1_valid_digit_cells == band1_valid_digit_cells) {
                             new_band_combinations[1] = band_combinations[1] & DIGIT_BAND_COMBINATIONS[band1_index];
                             if (new_band_combinations[1] != 0 or pending_digits == 0) {
-                                var band2_combinations_biterate = band_combinations[2] & BOARD_BAND_COMBINATIONS[band0_index] & BOARD_BAND_COMBINATIONS[band1_index];
-                                while (band2_combinations_biterate > 0) {
-                                    const band2_index = @ctz(band2_combinations_biterate);
+                                var band2_biterate = band_combinations[2] & BOARD_BAND_COMBINATIONS[band0_index] & BOARD_BAND_COMBINATIONS[band1_index];
+                                while (band2_biterate > 0) {
+                                    const band2_index = @ctz(band2_biterate);
                                     const band2_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band2_index];
-                                    if (number_band2 & band2_valid_digit_cells == band2_valid_digit_cells) {
+                                    if (digit_band2 & band2_valid_digit_cells == band2_valid_digit_cells) {
                                         new_band_combinations[2] = band_combinations[2] & DIGIT_BAND_COMBINATIONS[band2_index];
                                         if (new_band_combinations[2] != 0 or pending_digits == 0) {
                                             self.digit_candidate_cells[digit_index] = @as(u128, band0_valid_digit_cells) | @as(u128, band1_valid_digit_cells) << 27 | @as(u128, band2_valid_digit_cells) << 54;
@@ -162,15 +162,15 @@ pub const Sudoku = struct {
                                             }
                                         }
                                     }
-                                    band2_combinations_biterate &= band2_combinations_biterate - 1;
+                                    band2_biterate &= band2_biterate - 1;
                                 }
                             }
                         }
-                        band1_combinations_biterate &= band1_combinations_biterate - 1;
+                        band1_biterate &= band1_biterate - 1;
                     }
                 }
             }
-            band0_combinations_biterate &= band0_combinations_biterate - 1;
+            band0_biterate &= band0_biterate - 1;
         }
         return false;
     }
