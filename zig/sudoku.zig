@@ -108,7 +108,7 @@ pub const Sudoku = struct {
     }
 
     fn find_match(self: *Sudoku, digit_index: usize, band_combinations: [3]u192) bool {
-        self.pending_digits &= ~BIT9[digit_index];
+        self.pending_digits ^= BIT9[digit_index];
 
         if (self.pending_digits == 0 and self.pending_digit_houses[digit_index] == 0) {
             return true;
