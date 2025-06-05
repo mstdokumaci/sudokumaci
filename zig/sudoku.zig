@@ -51,19 +51,19 @@ pub const Sudoku = struct {
         var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         var have_new_placements = false;
 
-        var biterate = self.pending_digits;
-        while (biterate > 0) {
-            const number = @ctz(biterate);
-            if (self.pending_digit_groups[number] > 0) {
+        var pending_digits_biterate = self.pending_digits;
+        while (pending_digits_biterate > 0) {
+            const digit_index = @ctz(pending_digits_biterate);
+            if (self.pending_digit_groups[digit_index] > 0) {
                 var remove_union: u128 = 0;
                 var others_union: u128 = 0;
-                for (placements_to_propagate, 0..) |other_remove, remove_number| {
-                    if (number != remove_number) {
+                for (placements_to_propagate, 0..) |other_remove, remove_digit_index| {
+                    if (digit_index != remove_digit_index) {
                         remove_union |= other_remove;
-                        others_union |= self.digit_candidate_cells[remove_number];
+                        others_union |= self.digit_candidate_cells[remove_digit_index];
                     }
                 }
-                const cells = &self.digit_candidate_cells[number];
+                const cells = &self.digit_candidate_cells[digit_index];
                 const removed = cells.* & ~remove_union;
                 const ones = @popCount(removed);
                 if (ones < 9) {
@@ -77,7 +77,7 @@ pub const Sudoku = struct {
                         cells.* &= SET81[@ctz(hidden_singles)];
                         hidden_singles &= hidden_singles - 1;
                     }
-                    var pending_digit_groups = self.pending_digit_groups[number];
+                    var pending_digit_groups = self.pending_digit_groups[digit_index];
                     while (pending_digit_groups > 0) {
                         const group = cells.* & GROUPS81[@ctz(pending_digit_groups)];
                         const group_ones = @popCount(group);
@@ -87,8 +87,8 @@ pub const Sudoku = struct {
                         } else if (group_ones == 1) {
                             const cell_index = @ctz(group);
                             cells.* &= SET81[cell_index];
-                            self.pending_digit_groups[number] &= SET_CELL_GROUPS[cell_index];
-                            new_placements[number] |= group;
+                            self.pending_digit_groups[digit_index] &= SET_CELL_GROUPS[cell_index];
+                            new_placements[digit_index] |= group;
                             have_new_placements = true;
                         }
                         pending_digit_groups &= pending_digit_groups - 1;
@@ -96,19 +96,23 @@ pub const Sudoku = struct {
                 }
                 if (ones < min_digit_locations) {
                     min_digit_locations = ones;
-                    most_constrained_digit_index = number;
+                    most_constrained_digit_index = digit_index;
                 }
             } else {
-                self.pending_digits &= ~BIT9[number];
-                most_constrained_digit_index = number;
+                min_digit_locations = 9;
+                most_constrained_digit_index = digit_index;
             }
-            biterate &= biterate - 1;
+            pending_digits_biterate &= pending_digits_biterate - 1;
         }
         return if (have_new_placements) self.remove_cells(new_placements) else most_constrained_digit_index;
     }
 
     fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u192) bool {
         self.pending_digits &= ~BIT9[number];
+
+        if (self.pending_digits == 0 and self.pending_digit_groups[number] == 0) {
+            return true;
+        }
 
         const pending_digits = self.pending_digits;
         const digit_candidate_cells = self.digit_candidate_cells;
