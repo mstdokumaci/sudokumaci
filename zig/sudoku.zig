@@ -9,7 +9,7 @@ const BIT81 = @import("constants.zig").BIT81;
 const BOARD_HOUSES = @import("constants.zig").BOARD_HOUSES;
 const SET81 = @import("constants.zig").SET81;
 const SET_CELL_HOUSES = @import("constants.zig").SET_CELL_HOUSES;
-const VALID_DIGIT_BAND_CELLS = @import("constants.zig").VALID_DIGIT_BAND_CELLS;
+const VALID_BAND_CELLS = @import("constants.zig").VALID_BAND_CELLS;
 const DIGIT_BAND_COMBINATIONS = @import("constants.zig").DIGIT_BAND_COMBINATIONS;
 const BOARD_BAND_COMBINATIONS = @import("constants.zig").BOARD_BAND_COMBINATIONS;
 
@@ -127,25 +127,25 @@ pub const Sudoku = struct {
         var band0_biterate = band_combinations[0];
         while (band0_biterate > 0) {
             const band0_index = @ctz(band0_biterate);
-            const band0_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band0_index];
-            if (digit_band0 & band0_valid_digit_cells == band0_valid_digit_cells) {
+            const band0_valid_cells = VALID_BAND_CELLS[band0_index];
+            if (digit_band0 & band0_valid_cells == band0_valid_cells) {
                 new_band_combinations[0] = band_combinations[0] & DIGIT_BAND_COMBINATIONS[band0_index];
                 if (new_band_combinations[0] != 0 or pending_digits == 0) {
                     var band1_biterate = band_combinations[1] & BOARD_BAND_COMBINATIONS[band0_index];
                     while (band1_biterate > 0) {
                         const band1_index = @ctz(band1_biterate);
-                        const band1_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band1_index];
-                        if (digit_band1 & band1_valid_digit_cells == band1_valid_digit_cells) {
+                        const band1_valid_cells = VALID_BAND_CELLS[band1_index];
+                        if (digit_band1 & band1_valid_cells == band1_valid_cells) {
                             new_band_combinations[1] = band_combinations[1] & DIGIT_BAND_COMBINATIONS[band1_index];
                             if (new_band_combinations[1] != 0 or pending_digits == 0) {
                                 var band2_biterate = band_combinations[2] & BOARD_BAND_COMBINATIONS[band0_index] & BOARD_BAND_COMBINATIONS[band1_index];
                                 while (band2_biterate > 0) {
                                     const band2_index = @ctz(band2_biterate);
-                                    const band2_valid_digit_cells = VALID_DIGIT_BAND_CELLS[band2_index];
-                                    if (digit_band2 & band2_valid_digit_cells == band2_valid_digit_cells) {
+                                    const band2_valid_cells = VALID_BAND_CELLS[band2_index];
+                                    if (digit_band2 & band2_valid_cells == band2_valid_cells) {
                                         new_band_combinations[2] = band_combinations[2] & DIGIT_BAND_COMBINATIONS[band2_index];
                                         if (new_band_combinations[2] != 0 or pending_digits == 0) {
-                                            self.digit_candidate_cells[digit_index] = @as(u128, band0_valid_digit_cells) | @as(u128, band1_valid_digit_cells) << 27 | @as(u128, band2_valid_digit_cells) << 54;
+                                            self.digit_candidate_cells[digit_index] = @as(u128, band0_valid_cells) | @as(u128, band1_valid_cells) << 27 | @as(u128, band2_valid_cells) << 54;
                                             if (pending_digits == 0) {
                                                 return true;
                                             }

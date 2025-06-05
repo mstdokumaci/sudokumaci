@@ -208,34 +208,34 @@ fn generate_set_cell_houses() [81]usize {
 }
 pub const SET_CELL_HOUSES = generate_set_cell_houses();
 
-fn generate_valid_digit_band_cells() [162]usize {
+fn generate_valid_band_cells() [162]usize {
     @setEvalBranchQuota(10000);
-    var valid_digit_band_cells: [162]usize = .{0} ** 162;
-    valid_digit_band_cells[0] = ALL27;
+    var valid_band_cells: [162]usize = .{0} ** 162;
+    valid_band_cells[0] = ALL27;
     for (0..3) |row_index| {
         var index: u8 = 0;
-        for (valid_digit_band_cells) |digit_band_cells| {
-            const columns: usize = (digit_band_cells & BAND_HOUSES[row_index]) >> row_index * 9;
+        for (valid_band_cells) |band_cells| {
+            const columns: usize = (band_cells & BAND_HOUSES[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
-                    valid_digit_band_cells[index] = digit_band_cells & SET27[row_index * 9 + col_index];
+                    valid_band_cells[index] = band_cells & SET27[row_index * 9 + col_index];
                     index += 1;
                 }
             }
         }
     }
-    return valid_digit_band_cells;
+    return valid_band_cells;
 }
 
-pub const VALID_DIGIT_BAND_CELLS = generate_valid_digit_band_cells();
+pub const VALID_BAND_CELLS = generate_valid_band_cells();
 
 fn generate_digit_band_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var digit_band_combinations: [162]u192 = undefined;
-    for (VALID_DIGIT_BAND_CELLS, 0..) |digit_band_cells1, index1| {
+    for (VALID_BAND_CELLS, 0..) |band_cells1, index1| {
         var bit_set: u192 = 0;
-        for (VALID_DIGIT_BAND_CELLS, 0..) |digit_band_cells2, index2| {
-            if (digit_band_cells1 & digit_band_cells2 == 0) {
+        for (VALID_BAND_CELLS, 0..) |band_cells2, index2| {
+            if (band_cells1 & band_cells2 == 0) {
                 bit_set |= 1 << index2;
             }
         }
@@ -249,16 +249,16 @@ pub const DIGIT_BAND_COMBINATIONS = generate_digit_band_combinations();
 fn generate_board_band_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var board_band_combinations: [162]u192 = undefined;
-    for (VALID_DIGIT_BAND_CELLS, 0..) |digit_band_cells1, index1| {
-        var bit_set: u192 = 0;
-        for (VALID_DIGIT_BAND_CELLS, 0..) |digit_band_cells2, index2| {
-            const row1 = digit_band_cells1 | digit_band_cells1 >> 9 | digit_band_cells1 >> 18;
-            const row2 = digit_band_cells2 | digit_band_cells2 >> 9 | digit_band_cells2 >> 18;
+    for (VALID_BAND_CELLS, 0..) |band_cells1, index1| {
+        var band_combinations: u192 = 0;
+        for (VALID_BAND_CELLS, 0..) |band_cells2, index2| {
+            const row1 = band_cells1 | band_cells1 >> 9 | band_cells1 >> 18;
+            const row2 = band_cells2 | band_cells2 >> 9 | band_cells2 >> 18;
             if (row1 & row2 == 0) {
-                bit_set |= 1 << index2;
+                band_combinations |= 1 << index2;
             }
         }
-        board_band_combinations[index1] = bit_set;
+        board_band_combinations[index1] = band_combinations;
     }
     return board_band_combinations;
 }
