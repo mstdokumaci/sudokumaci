@@ -208,34 +208,34 @@ fn generate_set_cell_houses() [81]usize {
 }
 pub const SET_CELL_HOUSES = generate_set_cell_houses();
 
-fn generate_possibles() [162]usize {
+fn generate_valid_band_digit_cells() [162]usize {
     @setEvalBranchQuota(10000);
-    var possibles: [162]usize = .{0} ** 162;
-    possibles[0] = ALL27;
+    var valid_band_digit_cells: [162]usize = .{0} ** 162;
+    valid_band_digit_cells[0] = ALL27;
     for (0..3) |row_index| {
         var index: u8 = 0;
-        for (possibles) |possible| {
-            const columns: usize = (possible & BAND_HOUSES[row_index]) >> row_index * 9;
+        for (valid_band_digit_cells) |band_digit_cells| {
+            const columns: usize = (band_digit_cells & BAND_HOUSES[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
-                    possibles[index] = possible & SET27[row_index * 9 + col_index];
+                    valid_band_digit_cells[index] = band_digit_cells & SET27[row_index * 9 + col_index];
                     index += 1;
                 }
             }
         }
     }
-    return possibles;
+    return valid_band_digit_cells;
 }
 
-pub const POSSIBLES = generate_possibles();
+pub const VALID_BAND_DIGIT_CELLS = generate_valid_band_digit_cells();
 
 fn generate_number_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var number_combinations: [162]u192 = undefined;
-    for (POSSIBLES, 0..) |possible1, index1| {
+    for (VALID_BAND_DIGIT_CELLS, 0..) |band_digit_cells1, index1| {
         var bit_set: u192 = 0;
-        for (POSSIBLES, 0..) |possible2, index2| {
-            if (possible1 & possible2 == 0) {
+        for (VALID_BAND_DIGIT_CELLS, 0..) |band_digit_cells2, index2| {
+            if (band_digit_cells1 & band_digit_cells2 == 0) {
                 bit_set |= 1 << index2;
             }
         }
@@ -249,11 +249,11 @@ pub const NUMBER_COMBINATIONS = generate_number_combinations();
 fn generate_band_combinations() [162]u192 {
     @setEvalBranchQuota(100000);
     var row_combinations: [162]u192 = undefined;
-    for (POSSIBLES, 0..) |possible1, index1| {
+    for (VALID_BAND_DIGIT_CELLS, 0..) |band_digit_cells1, index1| {
         var bit_set: u192 = 0;
-        for (POSSIBLES, 0..) |possible2, index2| {
-            const row1 = possible1 | possible1 >> 9 | possible1 >> 18;
-            const row2 = possible2 | possible2 >> 9 | possible2 >> 18;
+        for (VALID_BAND_DIGIT_CELLS, 0..) |band_digit_cells2, index2| {
+            const row1 = band_digit_cells1 | band_digit_cells1 >> 9 | band_digit_cells1 >> 18;
+            const row2 = band_digit_cells2 | band_digit_cells2 >> 9 | band_digit_cells2 >> 18;
             if (row1 & row2 == 0) {
                 bit_set |= 1 << index2;
             }
