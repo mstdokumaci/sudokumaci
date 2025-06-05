@@ -107,10 +107,10 @@ pub const Sudoku = struct {
         return if (have_new_placements) self.remove_cells(new_placements) else most_constrained_digit_index;
     }
 
-    fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u192) bool {
-        self.pending_digits &= ~BIT9[number];
+    fn find_match(self: *Sudoku, digit_index: usize, band_combinations: [3]u192) bool {
+        self.pending_digits &= ~BIT9[digit_index];
 
-        if (self.pending_digits == 0 and self.pending_digit_groups[number] == 0) {
+        if (self.pending_digits == 0 and self.pending_digit_groups[digit_index] == 0) {
             return true;
         }
 
@@ -118,9 +118,9 @@ pub const Sudoku = struct {
         const digit_candidate_cells = self.digit_candidate_cells;
         const pending_digit_groups = self.pending_digit_groups;
 
-        const number_band0: usize = @truncate(digit_candidate_cells[number] & ALL27);
-        const number_band1: usize = @truncate(digit_candidate_cells[number] >> 27 & ALL27);
-        const number_band2: usize = @truncate(digit_candidate_cells[number] >> 54 & ALL27);
+        const number_band0: usize = @truncate(digit_candidate_cells[digit_index] & ALL27);
+        const number_band1: usize = @truncate(digit_candidate_cells[digit_index] >> 27 & ALL27);
+        const number_band2: usize = @truncate(digit_candidate_cells[digit_index] >> 54 & ALL27);
 
         var new_band_combinations: [3]u192 = undefined;
 
@@ -145,12 +145,12 @@ pub const Sudoku = struct {
                                     if (number_band2 & possible2 == possible2) {
                                         new_band_combinations[2] = band_combinations[2] & NUMBER_COMBINATIONS[band2_index];
                                         if (new_band_combinations[2] != 0 or pending_digits == 0) {
-                                            self.digit_candidate_cells[number] = @as(u128, possible0) | @as(u128, possible1) << 27 | @as(u128, possible2) << 54;
+                                            self.digit_candidate_cells[digit_index] = @as(u128, possible0) | @as(u128, possible1) << 27 | @as(u128, possible2) << 54;
                                             if (pending_digits == 0) {
                                                 return true;
                                             }
                                             var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-                                            placements_to_propagate[number] = self.digit_candidate_cells[number];
+                                            placements_to_propagate[digit_index] = self.digit_candidate_cells[digit_index];
                                             const most_constrained_digit_index = self.remove_cells(placements_to_propagate);
                                             if (self.is_sudoku and self.find_match(most_constrained_digit_index, new_band_combinations)) {
                                                 return true;
