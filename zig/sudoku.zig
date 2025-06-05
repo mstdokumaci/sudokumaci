@@ -15,55 +15,55 @@ const BAND_COMBINATIONS = @import("constants.zig").BAND_COMBINATIONS;
 
 pub const Sudoku = struct {
     is_sudoku: bool = true,
-    numbers: usize = 0b111111111,
-    number_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
-    number_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
+    pending_digits: usize = 0b111111111,
+    digit_candidate_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
+    pending_digit_groups: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
     pub fn solve(self: *Sudoku, cell_values: []const u8) [81]u8 {
-        var remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        var initial_fixed_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         for (cell_values, 0..) |value, cell_index| {
             if (value > 48) {
-                const number = value - 49;
-                self.number_cells[number] &= SET81[cell_index];
-                remove_from_others[number] |= BIT81[cell_index];
+                const digit_index = value - 49;
+                self.digit_candidate_cells[digit_index] &= SET81[cell_index];
+                initial_fixed_placements[digit_index] |= BIT81[cell_index];
             }
         }
 
-        const shortest_number = self.remove_cells(remove_from_others);
+        const most_constrained_digit_index = self.remove_cells(initial_fixed_placements);
         assert(self.is_sudoku);
-        assert(self.find_match(shortest_number, .{ ALL162, ALL162, ALL162 }));
+        assert(self.find_match(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
 
         var solved: [81]u8 = undefined;
-        for (&self.number_cells, 0..) |*cells, number| {
-            const number_str = @as(u8, @truncate(number)) + 49;
-            while (cells.* > 0) {
-                solved[@ctz(cells.*)] = number_str;
-                cells.* &= cells.* - 1;
+        for (&self.digit_candidate_cells, 0..) |*digit_cells, digit_index| {
+            const digit_str = @as(u8, @truncate(digit_index)) + 49;
+            while (digit_cells.* > 0) {
+                solved[@ctz(digit_cells.*)] = digit_str;
+                digit_cells.* &= digit_cells.* - 1;
             }
         }
         return solved;
     }
 
-    fn remove_cells(self: *Sudoku, remove_from_others: [9]u128) usize {
-        var shortest_length: usize = 81;
-        var shortest_number: usize = 0;
-        var new_remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-        var new_remove = false;
+    fn remove_cells(self: *Sudoku, placements_to_propagate: [9]u128) usize {
+        var min_digit_locations: usize = 81;
+        var most_constrained_digit_index: usize = 0;
+        var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        var have_new_placements = false;
 
-        var biterate = self.numbers;
+        var biterate = self.pending_digits;
         while (biterate > 0) {
             const number = @ctz(biterate);
-            if (self.number_groups[number] > 0) {
+            if (self.pending_digit_groups[number] > 0) {
                 var remove_union: u128 = 0;
                 var others_union: u128 = 0;
-                for (remove_from_others, 0..) |other_remove, remove_number| {
+                for (placements_to_propagate, 0..) |other_remove, remove_number| {
                     if (number != remove_number) {
                         remove_union |= other_remove;
-                        others_union |= self.number_cells[remove_number];
+                        others_union |= self.digit_candidate_cells[remove_number];
                     }
                 }
-                const cells = &self.number_cells[number];
+                const cells = &self.digit_candidate_cells[number];
                 const removed = cells.* & ~remove_union;
                 const ones = @popCount(removed);
                 if (ones < 9) {
@@ -77,9 +77,9 @@ pub const Sudoku = struct {
                         cells.* &= SET81[@ctz(hidden_singles)];
                         hidden_singles &= hidden_singles - 1;
                     }
-                    var number_groups = self.number_groups[number];
-                    while (number_groups > 0) {
-                        const group = cells.* & GROUPS81[@ctz(number_groups)];
+                    var pending_digit_groups = self.pending_digit_groups[number];
+                    while (pending_digit_groups > 0) {
+                        const group = cells.* & GROUPS81[@ctz(pending_digit_groups)];
                         const group_ones = @popCount(group);
                         if (group_ones == 0) {
                             self.is_sudoku = false;
@@ -87,36 +87,36 @@ pub const Sudoku = struct {
                         } else if (group_ones == 1) {
                             const cell_index = @ctz(group);
                             cells.* &= SET81[cell_index];
-                            self.number_groups[number] &= SET_CELL_GROUPS[cell_index];
-                            new_remove_from_others[number] |= group;
-                            new_remove = true;
+                            self.pending_digit_groups[number] &= SET_CELL_GROUPS[cell_index];
+                            new_placements[number] |= group;
+                            have_new_placements = true;
                         }
-                        number_groups &= number_groups - 1;
+                        pending_digit_groups &= pending_digit_groups - 1;
                     }
                 }
-                if (ones < shortest_length) {
-                    shortest_length = ones;
-                    shortest_number = number;
+                if (ones < min_digit_locations) {
+                    min_digit_locations = ones;
+                    most_constrained_digit_index = number;
                 }
             } else {
-                self.numbers &= ~BIT9[number];
-                shortest_number = number;
+                self.pending_digits &= ~BIT9[number];
+                most_constrained_digit_index = number;
             }
             biterate &= biterate - 1;
         }
-        return if (new_remove) self.remove_cells(new_remove_from_others) else shortest_number;
+        return if (have_new_placements) self.remove_cells(new_placements) else most_constrained_digit_index;
     }
 
     fn find_match(self: *Sudoku, number: usize, band_combinations: [3]u192) bool {
-        self.numbers &= ~BIT9[number];
+        self.pending_digits &= ~BIT9[number];
 
-        const numbers = self.numbers;
-        const number_cells = self.number_cells;
-        const number_groups = self.number_groups;
+        const pending_digits = self.pending_digits;
+        const digit_candidate_cells = self.digit_candidate_cells;
+        const pending_digit_groups = self.pending_digit_groups;
 
-        const number_band0: usize = @truncate(number_cells[number] & ALL27);
-        const number_band1: usize = @truncate(number_cells[number] >> 27 & ALL27);
-        const number_band2: usize = @truncate(number_cells[number] >> 54 & ALL27);
+        const number_band0: usize = @truncate(digit_candidate_cells[number] & ALL27);
+        const number_band1: usize = @truncate(digit_candidate_cells[number] >> 27 & ALL27);
+        const number_band2: usize = @truncate(digit_candidate_cells[number] >> 54 & ALL27);
 
         var new_band_combinations: [3]u192 = undefined;
 
@@ -126,35 +126,35 @@ pub const Sudoku = struct {
             const possible0 = POSSIBLES[band0_index];
             if (number_band0 & possible0 == possible0) {
                 new_band_combinations[0] = band_combinations[0] & NUMBER_COMBINATIONS[band0_index];
-                if (new_band_combinations[0] != 0 or numbers == 0) {
+                if (new_band_combinations[0] != 0 or pending_digits == 0) {
                     var biterate1 = band_combinations[1] & BAND_COMBINATIONS[band0_index];
                     while (biterate1 > 0) {
                         const band1_index = @ctz(biterate1);
                         const possible1 = POSSIBLES[band1_index];
                         if (number_band1 & possible1 == possible1) {
                             new_band_combinations[1] = band_combinations[1] & NUMBER_COMBINATIONS[band1_index];
-                            if (new_band_combinations[1] != 0 or numbers == 0) {
+                            if (new_band_combinations[1] != 0 or pending_digits == 0) {
                                 var biterate2 = band_combinations[2] & BAND_COMBINATIONS[band0_index] & BAND_COMBINATIONS[band1_index];
                                 while (biterate2 > 0) {
                                     const band2_index = @ctz(biterate2);
                                     const possible2 = POSSIBLES[band2_index];
                                     if (number_band2 & possible2 == possible2) {
                                         new_band_combinations[2] = band_combinations[2] & NUMBER_COMBINATIONS[band2_index];
-                                        if (new_band_combinations[2] != 0 or numbers == 0) {
-                                            self.number_cells[number] = @as(u128, possible0) | @as(u128, possible1) << 27 | @as(u128, possible2) << 54;
-                                            if (numbers == 0) {
+                                        if (new_band_combinations[2] != 0 or pending_digits == 0) {
+                                            self.digit_candidate_cells[number] = @as(u128, possible0) | @as(u128, possible1) << 27 | @as(u128, possible2) << 54;
+                                            if (pending_digits == 0) {
                                                 return true;
                                             }
-                                            var remove_from_others: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-                                            remove_from_others[number] = self.number_cells[number];
-                                            const shortest_number = self.remove_cells(remove_from_others);
-                                            if (self.is_sudoku and self.find_match(shortest_number, new_band_combinations)) {
+                                            var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+                                            placements_to_propagate[number] = self.digit_candidate_cells[number];
+                                            const most_constrained_digit_index = self.remove_cells(placements_to_propagate);
+                                            if (self.is_sudoku and self.find_match(most_constrained_digit_index, new_band_combinations)) {
                                                 return true;
                                             } else {
                                                 self.is_sudoku = true;
-                                                self.numbers = numbers;
-                                                self.number_cells = number_cells;
-                                                self.number_groups = number_groups;
+                                                self.pending_digits = pending_digits;
+                                                self.digit_candidate_cells = digit_candidate_cells;
+                                                self.pending_digit_groups = pending_digit_groups;
                                             }
                                         }
                                     }
