@@ -30,9 +30,9 @@ pub const Sudoku = struct {
             }
         }
 
-        const most_constrained_digit_index = self.remove_cells(initial_fixed_placements);
+        const most_constrained_digit_index = self.clear_for_placements(initial_fixed_placements);
         assert(self.is_sudoku);
-        assert(self.find_match(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
+        assert(self.find_valid_bands(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
 
         var solved: [81]u8 = undefined;
         for (&self.digit_candidate_cells, 0..) |*digit_cells, digit_index| {
@@ -45,7 +45,7 @@ pub const Sudoku = struct {
         return solved;
     }
 
-    fn remove_cells(self: *Sudoku, placements_to_propagate: [9]u128) usize {
+    fn clear_for_placements(self: *Sudoku, placements_to_propagate: [9]u128) usize {
         var min_candidate_locations: usize = 81;
         var most_constrained_digit_index: usize = 0;
         var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -55,16 +55,16 @@ pub const Sudoku = struct {
         while (digits_biterate > 0) {
             const digit_index = @ctz(digits_biterate);
             if (self.pending_digit_houses[digit_index] > 0) {
-                var remove_cells_for_digit: u128 = 0;
+                var clear_cells_for_digit: u128 = 0;
                 var other_digits_candidates_union: u128 = 0;
                 for (placements_to_propagate, 0..) |placements, placement_digit_index| {
                     if (digit_index != placement_digit_index) {
-                        remove_cells_for_digit |= placements;
+                        clear_cells_for_digit |= placements;
                         other_digits_candidates_union |= self.digit_candidate_cells[placement_digit_index];
                     }
                 }
                 const digit_candidate_cells = &self.digit_candidate_cells[digit_index];
-                const pruned_digit_candidate_cells = digit_candidate_cells.* & ~remove_cells_for_digit;
+                const pruned_digit_candidate_cells = digit_candidate_cells.* & ~clear_cells_for_digit;
                 const candidate_locations_count = @popCount(pruned_digit_candidate_cells);
                 if (candidate_locations_count < 9) {
                     self.is_sudoku = false;
@@ -104,10 +104,10 @@ pub const Sudoku = struct {
             }
             digits_biterate &= digits_biterate - 1;
         }
-        return if (have_new_placements) self.remove_cells(new_placements) else most_constrained_digit_index;
+        return if (have_new_placements) self.clear_for_placements(new_placements) else most_constrained_digit_index;
     }
 
-    fn find_match(self: *Sudoku, digit_index: usize, band_combinations: [3]u192) bool {
+    fn find_valid_bands(self: *Sudoku, digit_index: usize, band_combinations: [3]u192) bool {
         self.pending_digits ^= BIT9[digit_index];
 
         if (self.pending_digits == 0 and self.pending_digit_houses[digit_index] == 0) {
@@ -151,8 +151,8 @@ pub const Sudoku = struct {
                                             }
                                             var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                                             placements_to_propagate[digit_index] = self.digit_candidate_cells[digit_index];
-                                            const most_constrained_digit_index = self.remove_cells(placements_to_propagate);
-                                            if (self.is_sudoku and self.find_match(most_constrained_digit_index, new_band_combinations)) {
+                                            const most_constrained_digit_index = self.clear_for_placements(placements_to_propagate);
+                                            if (self.is_sudoku and self.find_valid_bands(most_constrained_digit_index, new_band_combinations)) {
                                                 return true;
                                             } else {
                                                 self.is_sudoku = true;
