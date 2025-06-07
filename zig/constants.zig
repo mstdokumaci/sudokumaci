@@ -229,6 +229,31 @@ fn generate_valid_band_cells() [162]usize {
 
 pub const VALID_BAND_CELLS = generate_valid_band_cells();
 
+fn generate_row_bands() [3][512]u192 {
+    @setEvalBranchQuota(100000);
+    var row_bands: [3][512]u192 = .{.{0} ** 512} ** 3;
+    for (0..512) |row_cells| {
+        for (VALID_BAND_CELLS, 0..) |band_cells, band_index| {
+            const band_first_row: usize = band_cells & 0b111111111;
+            const band_second_row: usize = band_cells >> 9 & 0b111111111;
+            const band_third_row: usize = band_cells >> 18 & 0b111111111;
+            if (band_first_row & row_cells == band_first_row) {
+                row_bands[0][row_cells] |= 1 << band_index;
+            }
+            if (band_second_row & row_cells == band_second_row) {
+                row_bands[1][row_cells] |= 1 << band_index;
+            }
+            if (band_third_row & row_cells == band_third_row) {
+                row_bands[2][row_cells] |= 1 << band_index;
+            }
+        }
+    }
+
+    return row_bands;
+}
+
+pub const ROW_BANDS = generate_row_bands();
+
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
     var digit_compatible_bands: [162]u192 = undefined;
