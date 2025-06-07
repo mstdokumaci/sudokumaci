@@ -229,9 +229,9 @@ fn generate_valid_band_cells() [162]usize {
 
 pub const VALID_BAND_CELLS = generate_valid_band_cells();
 
-fn generate_digit_band_combinations() [162]u192 {
+fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
-    var digit_band_combinations: [162]u192 = undefined;
+    var digit_compatible_bands: [162]u192 = undefined;
     for (VALID_BAND_CELLS, 0..) |band_cells1, index1| {
         var bit_set: u192 = 0;
         for (VALID_BAND_CELLS, 0..) |band_cells2, index2| {
@@ -239,28 +239,28 @@ fn generate_digit_band_combinations() [162]u192 {
                 bit_set |= 1 << index2;
             }
         }
-        digit_band_combinations[index1] = bit_set;
+        digit_compatible_bands[index1] = bit_set;
     }
-    return digit_band_combinations;
+    return digit_compatible_bands;
 }
 
-pub const DIGIT_BAND_COMBINATIONS = generate_digit_band_combinations();
+pub const DIGIT_COMPATIBLE_BANDS = generate_digit_compatible_bands();
 
-fn generate_board_band_combinations() [162]u192 {
+fn generate_board_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
-    var board_band_combinations: [162]u192 = undefined;
+    var board_compatible_bands: [162]u192 = undefined;
     for (VALID_BAND_CELLS, 0..) |band_cells1, index1| {
-        var band_combinations: u192 = 0;
+        var band_compatibles: u192 = 0;
         for (VALID_BAND_CELLS, 0..) |band_cells2, index2| {
             const row1 = band_cells1 | band_cells1 >> 9 | band_cells1 >> 18;
             const row2 = band_cells2 | band_cells2 >> 9 | band_cells2 >> 18;
             if (row1 & row2 == 0) {
-                band_combinations |= 1 << index2;
+                band_compatibles |= 1 << index2;
             }
         }
-        board_band_combinations[index1] = band_combinations;
+        board_compatible_bands[index1] = band_compatibles;
     }
-    return board_band_combinations;
+    return board_compatible_bands;
 }
 
-pub const BOARD_BAND_COMBINATIONS = generate_board_band_combinations();
+pub const BOARD_COMPATIBLE_BANDS = generate_board_compatible_bands();
