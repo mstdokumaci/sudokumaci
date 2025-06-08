@@ -118,7 +118,8 @@ pub const Sudoku = struct {
 
         var new_reduced_bands: [3]u192 = undefined;
 
-        const candidate_cell_bands: [3]u192 = .{ ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 18 & 0b111111111)], ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 45 & 0b111111111)], ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 72 & 0b111111111)] };
+        const current_candidate_cells = &self.digit_candidate_cells[digit_index];
+        const candidate_cell_bands: [3]u192 = .{ ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)], ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)], ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)] };
 
         var band0_biterate = candidate_cell_bands[0] & reduced_bands[0];
         while (band0_biterate > 0) {
@@ -135,12 +136,12 @@ pub const Sudoku = struct {
                             const valid_band2_index = @ctz(band2_biterate);
                             new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[valid_band2_index];
                             if (new_reduced_bands[2] != 0 or pending_digits == 0) {
-                                self.digit_candidate_cells[digit_index] = @as(u128, VALID_BAND_CELLS[valid_band0_index]) | @as(u128, VALID_BAND_CELLS[valid_band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[valid_band2_index]) << 54;
+                                current_candidate_cells.* = @as(u128, VALID_BAND_CELLS[valid_band0_index]) | @as(u128, VALID_BAND_CELLS[valid_band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[valid_band2_index]) << 54;
                                 if (pending_digits == 0) {
                                     return true;
                                 }
                                 var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-                                placements_to_propagate[digit_index] = self.digit_candidate_cells[digit_index];
+                                placements_to_propagate[digit_index] = current_candidate_cells.*;
                                 const most_constrained_digit_index = self.clear_for_placements(placements_to_propagate);
                                 if (most_constrained_digit_index < 9 and self.find_valid_bands(most_constrained_digit_index, new_reduced_bands)) {
                                     return true;
