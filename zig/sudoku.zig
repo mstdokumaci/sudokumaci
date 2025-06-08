@@ -22,6 +22,7 @@ pub const Sudoku = struct {
     pub fn solve(self: *Sudoku, cell_values: []const u8) [81]u8 {
         var initial_fixed_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+        // Initialize digit candidate cells and fixed placements based on the input cell values
         for (cell_values, 0..) |value, cell_index| {
             if (value > 48) {
                 const digit_index = value - 49;
@@ -108,16 +109,20 @@ pub const Sudoku = struct {
     fn find_valid_bands(self: *Sudoku, digit_index: usize, reduced_bands: [3]u192) bool {
         self.pending_digits ^= BIT9[digit_index];
 
+        // If there are no pending digits and no pending houses for the current digit, we have a valid solution
         if (self.pending_digits == 0 and self.pending_digit_houses[digit_index] == 0) {
             return true;
         }
 
+        // Make a copy of the current state to restore for backtracking
         const pending_digits = self.pending_digits;
         const digit_candidate_cells = self.digit_candidate_cells;
         const pending_digit_houses = self.pending_digit_houses;
 
+        // Initialize new reduced bands
         var new_reduced_bands: [3]u192 = undefined;
 
+        // Calculate the candidate cell bands for the current digit
         const current_candidate_cells = &self.digit_candidate_cells[digit_index];
         const candidate_cell_bands: [3]u192 = .{ ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)], ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)], ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)] };
 
@@ -138,14 +143,17 @@ pub const Sudoku = struct {
                             if (new_reduced_bands[2] != 0 or pending_digits == 0) {
                                 current_candidate_cells.* = @as(u128, VALID_BAND_CELLS[valid_band0_index]) | @as(u128, VALID_BAND_CELLS[valid_band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[valid_band2_index]) << 54;
                                 if (pending_digits == 0) {
+                                    // If no digits are pending, we have a valid solution
                                     return true;
                                 }
                                 var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                                 placements_to_propagate[digit_index] = current_candidate_cells.*;
                                 const most_constrained_digit_index = self.clear_for_placements(placements_to_propagate);
                                 if (most_constrained_digit_index < 9 and self.find_valid_bands(most_constrained_digit_index, new_reduced_bands)) {
+                                    // If recursion finds a valid solution, return true
                                     return true;
                                 } else {
+                                    // Restore the previous state for backtracking
                                     self.pending_digits = pending_digits;
                                     self.digit_candidate_cells = digit_candidate_cells;
                                     self.pending_digit_houses = pending_digit_houses;
