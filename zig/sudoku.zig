@@ -130,27 +130,24 @@ pub const Sudoku = struct {
         const row6_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 54 & 0b111111111);
         const row7_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 63 & 0b111111111);
         const row8_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 72 & 0b111111111);
-        const digit_band_compatibles: [3]u192 = .{ ROW_BANDS[0][row0_cells] & ROW_BANDS[1][row1_cells] & ROW_BANDS[2][row2_cells], ROW_BANDS[0][row3_cells] & ROW_BANDS[1][row4_cells] & ROW_BANDS[2][row5_cells], ROW_BANDS[0][row6_cells] & ROW_BANDS[1][row7_cells] & ROW_BANDS[2][row8_cells] };
+        const cell_compatible_bands: [3]u192 = .{ ROW_BANDS[0][row0_cells] & ROW_BANDS[1][row1_cells] & ROW_BANDS[2][row2_cells], ROW_BANDS[0][row3_cells] & ROW_BANDS[1][row4_cells] & ROW_BANDS[2][row5_cells], ROW_BANDS[0][row6_cells] & ROW_BANDS[1][row7_cells] & ROW_BANDS[2][row8_cells] };
 
-        var band0_biterate = digit_band_compatibles[0] & reduced_bands[0];
+        var band0_biterate = cell_compatible_bands[0] & reduced_bands[0];
         while (band0_biterate > 0) {
             const band0_index = @ctz(band0_biterate);
-            const band0_cells: u128 = VALID_BAND_CELLS[band0_index];
             new_reduced_bands[0] = reduced_bands[0] & DIGIT_COMPATIBLE_BANDS[band0_index];
             if (new_reduced_bands[0] != 0 or pending_digits == 0) {
-                var band1_biterate = digit_band_compatibles[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[band0_index];
+                var band1_biterate = cell_compatible_bands[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[band0_index];
                 while (band1_biterate > 0) {
                     const band1_index = @ctz(band1_biterate);
-                    const band1_cells: u128 = VALID_BAND_CELLS[band1_index];
                     new_reduced_bands[1] = reduced_bands[1] & DIGIT_COMPATIBLE_BANDS[band1_index];
                     if (new_reduced_bands[1] != 0 or pending_digits == 0) {
-                        var band2_biterate = digit_band_compatibles[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[band0_index] & BOARD_COMPATIBLE_BANDS[band1_index];
+                        var band2_biterate = cell_compatible_bands[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[band0_index] & BOARD_COMPATIBLE_BANDS[band1_index];
                         while (band2_biterate > 0) {
                             const band2_index = @ctz(band2_biterate);
-                            const band2_cells: u128 = VALID_BAND_CELLS[band2_index];
                             new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[band2_index];
                             if (new_reduced_bands[2] != 0 or pending_digits == 0) {
-                                self.digit_candidate_cells[digit_index] = @as(u128, band0_cells) | @as(u128, band1_cells) << 27 | @as(u128, band2_cells) << 54;
+                                self.digit_candidate_cells[digit_index] = @as(u128, VALID_BAND_CELLS[band0_index]) | @as(u128, VALID_BAND_CELLS[band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[band2_index]) << 54;
                                 if (pending_digits == 0) {
                                     return true;
                                 }
