@@ -15,7 +15,6 @@ const DIGIT_COMPATIBLE_BANDS = @import("constants.zig").DIGIT_COMPATIBLE_BANDS;
 const BOARD_COMPATIBLE_BANDS = @import("constants.zig").BOARD_COMPATIBLE_BANDS;
 
 pub const Sudoku = struct {
-    is_sudoku: bool = true,
     pending_digits: usize = 0b111111111,
     digit_candidate_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
     pending_digit_houses: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
@@ -32,7 +31,7 @@ pub const Sudoku = struct {
         }
 
         const most_constrained_digit_index = self.clear_for_placements(initial_fixed_placements);
-        assert(self.is_sudoku);
+        assert(most_constrained_digit_index < 9);
         assert(self.find_valid_bands(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
 
         var solved: [81]u8 = undefined;
@@ -68,8 +67,7 @@ pub const Sudoku = struct {
                 const pruned_digit_candidate_cells = digit_candidate_cells.* & ~clear_cells_for_digit;
                 const candidate_locations_count = @popCount(pruned_digit_candidate_cells);
                 if (candidate_locations_count < 9) {
-                    self.is_sudoku = false;
-                    return 0;
+                    return 9;
                 }
                 if (pruned_digit_candidate_cells != digit_candidate_cells.*) {
                     digit_candidate_cells.* = pruned_digit_candidate_cells;
@@ -83,8 +81,7 @@ pub const Sudoku = struct {
                         const digit_candidates_in_house = digit_candidate_cells.* & HOUSE_CELLS[@ctz(houses_biterate)];
                         const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
                         if (digit_candidate_count_in_house == 0) {
-                            self.is_sudoku = false;
-                            return 0;
+                            return 9;
                         } else if (digit_candidate_count_in_house == 1) {
                             const placed_cell_index = @ctz(digit_candidates_in_house);
                             digit_candidate_cells.* &= CLEAR_HOUSES[placed_cell_index];
@@ -121,16 +118,7 @@ pub const Sudoku = struct {
 
         var new_reduced_bands: [3]u192 = undefined;
 
-        const row0_cells: usize = @truncate(digit_candidate_cells[digit_index] & 0b111111111);
-        const row1_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 9 & 0b111111111);
-        const row2_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 18 & 0b111111111);
-        const row3_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 27 & 0b111111111);
-        const row4_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 36 & 0b111111111);
-        const row5_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 45 & 0b111111111);
-        const row6_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 54 & 0b111111111);
-        const row7_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 63 & 0b111111111);
-        const row8_cells: usize = @truncate(digit_candidate_cells[digit_index] >> 72 & 0b111111111);
-        const candidate_cell_bands: [3]u192 = .{ ROW_BANDS[0][row0_cells] & ROW_BANDS[1][row1_cells] & ROW_BANDS[2][row2_cells], ROW_BANDS[0][row3_cells] & ROW_BANDS[1][row4_cells] & ROW_BANDS[2][row5_cells], ROW_BANDS[0][row6_cells] & ROW_BANDS[1][row7_cells] & ROW_BANDS[2][row8_cells] };
+        const candidate_cell_bands: [3]u192 = .{ ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 18 & 0b111111111)], ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 45 & 0b111111111)], ROW_BANDS[0][@truncate(digit_candidate_cells[digit_index] >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(digit_candidate_cells[digit_index] >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(digit_candidate_cells[digit_index] >> 72 & 0b111111111)] };
 
         var band0_biterate = candidate_cell_bands[0] & reduced_bands[0];
         while (band0_biterate > 0) {
@@ -154,10 +142,9 @@ pub const Sudoku = struct {
                                 var placements_to_propagate: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
                                 placements_to_propagate[digit_index] = self.digit_candidate_cells[digit_index];
                                 const most_constrained_digit_index = self.clear_for_placements(placements_to_propagate);
-                                if (self.is_sudoku and self.find_valid_bands(most_constrained_digit_index, new_reduced_bands)) {
+                                if (most_constrained_digit_index < 9 and self.find_valid_bands(most_constrained_digit_index, new_reduced_bands)) {
                                     return true;
                                 } else {
-                                    self.is_sudoku = true;
                                     self.pending_digits = pending_digits;
                                     self.digit_candidate_cells = digit_candidate_cells;
                                     self.pending_digit_houses = pending_digit_houses;
