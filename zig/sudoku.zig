@@ -134,20 +134,20 @@ pub const Sudoku = struct {
 
         var band0_biterate = cell_compatible_bands[0] & reduced_bands[0];
         while (band0_biterate > 0) {
-            const band0_index = @ctz(band0_biterate);
-            new_reduced_bands[0] = reduced_bands[0] & DIGIT_COMPATIBLE_BANDS[band0_index];
+            const valid_band0_index = @ctz(band0_biterate);
+            new_reduced_bands[0] = reduced_bands[0] & DIGIT_COMPATIBLE_BANDS[valid_band0_index];
             if (new_reduced_bands[0] != 0 or pending_digits == 0) {
-                var band1_biterate = cell_compatible_bands[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[band0_index];
+                var band1_biterate = cell_compatible_bands[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[valid_band0_index];
                 while (band1_biterate > 0) {
-                    const band1_index = @ctz(band1_biterate);
-                    new_reduced_bands[1] = reduced_bands[1] & DIGIT_COMPATIBLE_BANDS[band1_index];
+                    const valid_band1_index = @ctz(band1_biterate);
+                    new_reduced_bands[1] = reduced_bands[1] & DIGIT_COMPATIBLE_BANDS[valid_band1_index];
                     if (new_reduced_bands[1] != 0 or pending_digits == 0) {
-                        var band2_biterate = cell_compatible_bands[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[band0_index] & BOARD_COMPATIBLE_BANDS[band1_index];
+                        var band2_biterate = cell_compatible_bands[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[valid_band0_index] & BOARD_COMPATIBLE_BANDS[valid_band1_index];
                         while (band2_biterate > 0) {
-                            const band2_index = @ctz(band2_biterate);
-                            new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[band2_index];
+                            const valid_band2_index = @ctz(band2_biterate);
+                            new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[valid_band2_index];
                             if (new_reduced_bands[2] != 0 or pending_digits == 0) {
-                                self.digit_candidate_cells[digit_index] = @as(u128, VALID_BAND_CELLS[band0_index]) | @as(u128, VALID_BAND_CELLS[band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[band2_index]) << 54;
+                                self.digit_candidate_cells[digit_index] = @as(u128, VALID_BAND_CELLS[valid_band0_index]) | @as(u128, VALID_BAND_CELLS[valid_band1_index]) << 27 | @as(u128, VALID_BAND_CELLS[valid_band2_index]) << 54;
                                 if (pending_digits == 0) {
                                     return true;
                                 }
