@@ -68,6 +68,7 @@ pub const Sudoku = struct {
                 const pruned_digit_candidate_cells = digit_candidate_cells.* & ~clear_cells_for_digit;
                 const candidate_locations_count = @popCount(pruned_digit_candidate_cells);
                 if (candidate_locations_count < 9) {
+                    // We found an invalid placement, return 9 to indicate failure
                     return 9;
                 }
                 if (pruned_digit_candidate_cells != digit_candidate_cells.*) {
@@ -82,6 +83,7 @@ pub const Sudoku = struct {
                         const digit_candidates_in_house = digit_candidate_cells.* & HOUSE_CELLS[@ctz(houses_biterate)];
                         const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
                         if (digit_candidate_count_in_house == 0) {
+                            // We found an invalid placement, return 9 to indicate failure
                             return 9;
                         } else if (digit_candidate_count_in_house == 1) {
                             const placed_cell_index = @ctz(digit_candidates_in_house);
