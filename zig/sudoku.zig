@@ -39,9 +39,8 @@ pub const Sudoku = struct {
         var solved: [81]u8 = undefined;
         for (&self.digit_candidate_cells, 0..) |*digit_cells, digit_index| {
             const digit_str = @as(u8, @truncate(digit_index)) + 49;
-            while (digit_cells.* > 0) {
+            while (digit_cells.* > 0) : (digit_cells.* &= digit_cells.* - 1) {
                 solved[@ctz(digit_cells.*)] = digit_str;
-                digit_cells.* &= digit_cells.* - 1;
             }
         }
         return solved;
@@ -54,7 +53,7 @@ pub const Sudoku = struct {
         var have_new_placements = false;
 
         var digits_biterate = self.pending_digits;
-        while (digits_biterate > 0) {
+        while (digits_biterate > 0) : (digits_biterate &= digits_biterate - 1) {
             const digit_index = @ctz(digits_biterate);
             if (self.pending_digit_houses[digit_index] > 0) {
                 var clear_cells_for_digit: u128 = 0;
@@ -80,12 +79,11 @@ pub const Sudoku = struct {
                             @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 72 & 0b111111111)]) << 54;
                     }
                     var hidden_singles_biterate: u128 = digit_candidate_cells.* & ~other_digits_candidates_union;
-                    while (hidden_singles_biterate > 0) {
+                    while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
                         digit_candidate_cells.* &= CLEAR_HOUSES[@ctz(hidden_singles_biterate)];
-                        hidden_singles_biterate &= hidden_singles_biterate - 1;
                     }
                     var houses_biterate = self.pending_digit_houses[digit_index];
-                    while (houses_biterate > 0) {
+                    while (houses_biterate > 0) : (houses_biterate &= houses_biterate - 1) {
                         const digit_candidates_in_house = digit_candidate_cells.* & HOUSE_CELLS[@ctz(houses_biterate)];
                         const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
                         if (digit_candidate_count_in_house == 0) {
@@ -98,7 +96,6 @@ pub const Sudoku = struct {
                             new_placements[digit_index] |= digit_candidates_in_house;
                             have_new_placements = true;
                         }
-                        houses_biterate &= houses_biterate - 1;
                     }
                 }
                 if (candidate_locations_count < min_candidate_locations) {
@@ -109,7 +106,6 @@ pub const Sudoku = struct {
                 min_candidate_locations = 9;
                 most_constrained_digit_index = digit_index;
             }
-            digits_biterate &= digits_biterate - 1;
         }
         return if (have_new_placements) self.clear_for_placements(new_placements) else most_constrained_digit_index;
     }
@@ -139,17 +135,17 @@ pub const Sudoku = struct {
         };
 
         var band0_biterate = candidate_cell_bands[0] & reduced_bands[0];
-        while (band0_biterate > 0) {
+        while (band0_biterate > 0) : (band0_biterate &= band0_biterate - 1) {
             const valid_band0_index = @ctz(band0_biterate);
             new_reduced_bands[0] = reduced_bands[0] & DIGIT_COMPATIBLE_BANDS[valid_band0_index];
             if (new_reduced_bands[0] != 0 or pending_digits == 0) {
                 var band1_biterate = candidate_cell_bands[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[valid_band0_index];
-                while (band1_biterate > 0) {
+                while (band1_biterate > 0) : (band1_biterate &= band1_biterate - 1) {
                     const valid_band1_index = @ctz(band1_biterate);
                     new_reduced_bands[1] = reduced_bands[1] & DIGIT_COMPATIBLE_BANDS[valid_band1_index];
                     if (new_reduced_bands[1] != 0 or pending_digits == 0) {
                         var band2_biterate = candidate_cell_bands[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[valid_band0_index] & BOARD_COMPATIBLE_BANDS[valid_band1_index];
-                        while (band2_biterate > 0) {
+                        while (band2_biterate > 0) : (band2_biterate &= band2_biterate - 1) {
                             const valid_band2_index = @ctz(band2_biterate);
                             new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[valid_band2_index];
                             if (new_reduced_bands[2] != 0 or pending_digits == 0) {
@@ -171,14 +167,13 @@ pub const Sudoku = struct {
                                     self.pending_digit_houses = pending_digit_houses;
                                 }
                             }
-                            band2_biterate &= band2_biterate - 1;
                         }
                     }
-                    band1_biterate &= band1_biterate - 1;
                 }
             }
-            band0_biterate &= band0_biterate - 1;
         }
+
+        // If no valid bands were found, return false
         return false;
     }
 };
