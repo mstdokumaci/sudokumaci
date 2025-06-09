@@ -33,6 +33,8 @@ The heart of the solver is a set of large lookup tables generated at compile tim
 - `ROW_BANDS_UNION: [3][512]usize`: An accelerator for the **propagation engine**. It maps a 9-bit row candidate mask to the bitwise `OR` union of all compatible `VALID_BAND_CELLS` patterns. This is key for the advanced consistency check.
 - `DIGIT_COMPATIBLE_BANDS` & `BOARD_COMPATIBLE_BANDS`: These `[162]u192` tables store compatibility information between pairs of band patterns, used to prune the search tree aggressively.
 
+### Solver Steps
+
 #### **Step 1: The Propagation Engine (`clear_for_placements`)**
 
 This is an iterative engine that runs until the puzzle state is completely stable. It applies two main techniques in a cycle:
