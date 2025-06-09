@@ -229,9 +229,10 @@ fn generate_valid_band_cells() [162]usize {
 
 pub const VALID_BAND_CELLS = generate_valid_band_cells();
 
-fn generate_row_bands() [3][512]u192 {
+fn generate_row_bands_and_union() struct { [3][512]u192, [3][512]usize } {
     @setEvalBranchQuota(100000);
     var row_bands: [3][512]u192 = .{.{0} ** 512} ** 3;
+    var row_bands_union: [3][512]usize = .{.{0} ** 512} ** 3;
     for (0..512) |row_cells| {
         for (VALID_BAND_CELLS, 0..) |band_cells, band_index| {
             const band_first_row: usize = band_cells & 0b111111111;
@@ -239,32 +240,37 @@ fn generate_row_bands() [3][512]u192 {
             const band_third_row: usize = band_cells >> 18 & 0b111111111;
             if (band_first_row & row_cells == band_first_row) {
                 row_bands[0][row_cells] |= 1 << band_index;
+                row_bands_union[0][row_cells] |= band_cells;
             }
             if (band_second_row & row_cells == band_second_row) {
                 row_bands[1][row_cells] |= 1 << band_index;
+                row_bands_union[1][row_cells] |= band_cells;
             }
             if (band_third_row & row_cells == band_third_row) {
                 row_bands[2][row_cells] |= 1 << band_index;
+                row_bands_union[2][row_cells] |= band_cells;
             }
         }
     }
 
-    return row_bands;
+    return .{ row_bands, row_bands_union };
 }
 
-pub const ROW_BANDS = generate_row_bands();
+const ROW_BANDS_AND_UNION = generate_row_bands_and_union();
+pub const ROW_BANDS = ROW_BANDS_AND_UNION[0];
+pub const ROW_BANDS_UNION = ROW_BANDS_AND_UNION[1];
 
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
     var digit_compatible_bands: [162]u192 = undefined;
     for (VALID_BAND_CELLS, 0..) |band_cells1, index1| {
-        var bit_set: u192 = 0;
+        var compatible_bands: u192 = 0;
         for (VALID_BAND_CELLS, 0..) |band_cells2, index2| {
             if (band_cells1 & band_cells2 == 0) {
-                bit_set |= 1 << index2;
+                compatible_bands |= 1 << index2;
             }
         }
-        digit_compatible_bands[index1] = bit_set;
+        digit_compatible_bands[index1] = compatible_bands;
     }
     return digit_compatible_bands;
 }

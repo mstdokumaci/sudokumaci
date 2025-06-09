@@ -11,6 +11,7 @@ const CLEAR_HOUSES = @import("constants.zig").CLEAR_HOUSES;
 const CLEAR_HOUSE_INDEXES = @import("constants.zig").CLEAR_HOUSE_INDEXES;
 const VALID_BAND_CELLS = @import("constants.zig").VALID_BAND_CELLS;
 const ROW_BANDS = @import("constants.zig").ROW_BANDS;
+const ROW_BANDS_UNION = @import("constants.zig").ROW_BANDS_UNION;
 const DIGIT_COMPATIBLE_BANDS = @import("constants.zig").DIGIT_COMPATIBLE_BANDS;
 const BOARD_COMPATIBLE_BANDS = @import("constants.zig").BOARD_COMPATIBLE_BANDS;
 
@@ -73,6 +74,11 @@ pub const Sudoku = struct {
                 }
                 if (pruned_digit_candidate_cells != digit_candidate_cells.*) {
                     digit_candidate_cells.* = pruned_digit_candidate_cells;
+                    if (candidate_locations_count < 30) {
+                        digit_candidate_cells.* &= @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 18 & 0b111111111)]) |
+                            @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 45 & 0b111111111)]) << 27 |
+                            @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 72 & 0b111111111)]) << 54;
+                    }
                     var hidden_singles_biterate: u128 = digit_candidate_cells.* & ~other_digits_candidates_union;
                     while (hidden_singles_biterate > 0) {
                         digit_candidate_cells.* &= CLEAR_HOUSES[@ctz(hidden_singles_biterate)];
