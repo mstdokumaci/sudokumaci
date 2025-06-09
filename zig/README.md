@@ -50,7 +50,7 @@ For the technically-minded, this solver combines several high-performance comput
 
 The state of the board and its constraints are stored entirely in bitmasks.
 
-- `digit_candidate_cells: [9]u128`: An array where each `u128` bitmask represents the 81 cells of the board. The n-th bit is '1' if the digit `n+1` can potentially be placed in that cell.
+- `digit_candidate_cells: [9]u128`: An array where each `u128` bitmask represents the 81 cells of the board. The n-th bit is '1' if the digit can potentially be placed in that cell.
 - `pending_digit_houses: [9]usize`: A bitmask tracking which "houses" (rows, columns, boxes) still need a given digit to be placed.
 
 All constraint propagation is done through bitwise `AND`, `OR`, `XOR`, and `NOT` operations on these integers, which is orders of magnitude faster than object- or array-based approaches.
@@ -94,7 +94,7 @@ zig build-exe -O ReleaseFast main.zig
 
 ## Usage
 
-Run the solver by passing a filename as an argument. The file should contain one 81-character Sudoku puzzle per line, using '0' for empty cells. The output will be the solved puzzles, printed to standard output.
+Run the solver by passing a filename as an argument. The file should contain one 81-character Sudoku puzzle per line, using '0' for empty cells. The output will be the puzzles and solutions, printed to standard output.
 
 ```sh
 time ./main ../test-data/debug.sudokus > ../test-data/debug.solved
