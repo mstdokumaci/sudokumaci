@@ -47,7 +47,7 @@ pub const Sudoku = struct {
     }
 
     fn clear_for_placements(self: *Sudoku, placements_to_propagate: [9]u128) usize {
-        var min_candidate_locations: usize = 81;
+        var min_candidate_count: usize = 81;
         var most_constrained_digit_index: usize = 0;
         var new_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         var have_new_placements = false;
@@ -64,46 +64,46 @@ pub const Sudoku = struct {
                         other_digits_candidates_union |= self.digit_candidate_cells[placement_digit_index];
                     }
                 }
-                const digit_candidate_cells = &self.digit_candidate_cells[digit_index];
-                const pruned_digit_candidate_cells = digit_candidate_cells.* & ~clear_cells_for_digit;
-                const candidate_locations_count = @popCount(pruned_digit_candidate_cells);
-                if (candidate_locations_count < 9) {
+                const current_candidate_cells = &self.digit_candidate_cells[digit_index];
+                const pruned_current_candidate_cells = current_candidate_cells.* & ~clear_cells_for_digit;
+                const candidate_count = @popCount(pruned_current_candidate_cells);
+                if (candidate_count < 9) {
                     // We found an invalid placement, return 9 to indicate failure
                     return 9;
                 }
-                if (pruned_digit_candidate_cells != digit_candidate_cells.*) {
-                    digit_candidate_cells.* = pruned_digit_candidate_cells;
-                    if (candidate_locations_count < 30) {
-                        digit_candidate_cells.* &= @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 18 & 0b111111111)]) |
-                            @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 45 & 0b111111111)]) << 27 |
-                            @as(u128, ROW_BANDS_UNION[0][@truncate(digit_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(digit_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(digit_candidate_cells.* >> 72 & 0b111111111)]) << 54;
+                if (pruned_current_candidate_cells != current_candidate_cells.*) {
+                    current_candidate_cells.* = pruned_current_candidate_cells;
+                    if (candidate_count < 28) {
+                        current_candidate_cells.* &= @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)]) |
+                            @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)]) << 27 |
+                            @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)]) << 54;
                     }
-                    var hidden_singles_biterate: u128 = digit_candidate_cells.* & ~other_digits_candidates_union;
+                    var hidden_singles_biterate: u128 = current_candidate_cells.* & ~other_digits_candidates_union;
                     while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
-                        digit_candidate_cells.* &= CLEAR_HOUSES[@ctz(hidden_singles_biterate)];
+                        current_candidate_cells.* &= CLEAR_HOUSES[@ctz(hidden_singles_biterate)];
                     }
                     var houses_biterate = self.pending_digit_houses[digit_index];
                     while (houses_biterate > 0) : (houses_biterate &= houses_biterate - 1) {
-                        const digit_candidates_in_house = digit_candidate_cells.* & HOUSE_CELLS[@ctz(houses_biterate)];
+                        const digit_candidates_in_house = current_candidate_cells.* & HOUSE_CELLS[@ctz(houses_biterate)];
                         const digit_candidate_count_in_house = @popCount(digit_candidates_in_house);
                         if (digit_candidate_count_in_house == 0) {
                             // We found an invalid placement, return 9 to indicate failure
                             return 9;
                         } else if (digit_candidate_count_in_house == 1) {
                             const placed_cell_index = @ctz(digit_candidates_in_house);
-                            digit_candidate_cells.* &= CLEAR_HOUSES[placed_cell_index];
+                            current_candidate_cells.* &= CLEAR_HOUSES[placed_cell_index];
                             self.pending_digit_houses[digit_index] &= CLEAR_HOUSE_INDEXES[placed_cell_index];
                             new_placements[digit_index] |= digit_candidates_in_house;
                             have_new_placements = true;
                         }
                     }
                 }
-                if (candidate_locations_count < min_candidate_locations) {
-                    min_candidate_locations = candidate_locations_count;
+                if (candidate_count < min_candidate_count) {
+                    min_candidate_count = candidate_count;
                     most_constrained_digit_index = digit_index;
                 }
             } else {
-                min_candidate_locations = 9;
+                min_candidate_count = 9;
                 most_constrained_digit_index = digit_index;
             }
         }
@@ -129,22 +129,22 @@ pub const Sudoku = struct {
         // Calculate the candidate cell bands for the current digit
         const current_candidate_cells = &self.digit_candidate_cells[digit_index];
         const candidate_cell_bands: [3]u192 = .{
-            ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)],
-            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)],
-            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] & reduced_bands[0],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] & reduced_bands[1],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)] & reduced_bands[2],
         };
 
-        var band0_biterate = candidate_cell_bands[0] & reduced_bands[0];
+        var band0_biterate = candidate_cell_bands[0];
         while (band0_biterate > 0) : (band0_biterate &= band0_biterate - 1) {
             const valid_band0_index = @ctz(band0_biterate);
             new_reduced_bands[0] = reduced_bands[0] & DIGIT_COMPATIBLE_BANDS[valid_band0_index];
             if (new_reduced_bands[0] != 0 or pending_digits == 0) {
-                var band1_biterate = candidate_cell_bands[1] & reduced_bands[1] & BOARD_COMPATIBLE_BANDS[valid_band0_index];
+                var band1_biterate = candidate_cell_bands[1] & BOARD_COMPATIBLE_BANDS[valid_band0_index];
                 while (band1_biterate > 0) : (band1_biterate &= band1_biterate - 1) {
                     const valid_band1_index = @ctz(band1_biterate);
                     new_reduced_bands[1] = reduced_bands[1] & DIGIT_COMPATIBLE_BANDS[valid_band1_index];
                     if (new_reduced_bands[1] != 0 or pending_digits == 0) {
-                        var band2_biterate = candidate_cell_bands[2] & reduced_bands[2] & BOARD_COMPATIBLE_BANDS[valid_band0_index] & BOARD_COMPATIBLE_BANDS[valid_band1_index];
+                        var band2_biterate = candidate_cell_bands[2] & BOARD_COMPATIBLE_BANDS[valid_band0_index] & BOARD_COMPATIBLE_BANDS[valid_band1_index];
                         while (band2_biterate > 0) : (band2_biterate &= band2_biterate - 1) {
                             const valid_band2_index = @ctz(band2_biterate);
                             new_reduced_bands[2] = reduced_bands[2] & DIGIT_COMPATIBLE_BANDS[valid_band2_index];
