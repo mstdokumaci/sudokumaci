@@ -32,10 +32,12 @@ pub const Sudoku = struct {
             }
         }
 
+        // Attempt solving the Sudoku puzzle
         const most_constrained_digit_index = self.clear_for_placements(initial_fixed_placements);
         assert(most_constrained_digit_index < 9);
         assert(self.find_valid_bands(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
 
+        // Convert the solved state into a string representation
         var solved: [81]u8 = undefined;
         for (&self.digit_candidate_cells, 0..) |*digit_cells, digit_index| {
             const digit_str = @as(u8, @truncate(digit_index)) + 49;
@@ -74,6 +76,7 @@ pub const Sudoku = struct {
                 if (pruned_current_candidate_cells != current_candidate_cells.*) {
                     current_candidate_cells.* = pruned_current_candidate_cells;
                     if (candidate_count < 28) {
+                        // Apply the union of row bands to prune candidates further
                         current_candidate_cells.* &= @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)]) |
                             @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)]) << 27 |
                             @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)]) << 54;
@@ -90,6 +93,7 @@ pub const Sudoku = struct {
                             // We found an invalid placement, return 9 to indicate failure
                             return 9;
                         } else if (digit_candidate_count_in_house == 1) {
+                            // We found a single candidate in the house, place it
                             const placed_cell_index = @ctz(digit_candidates_in_house);
                             current_candidate_cells.* &= CLEAR_HOUSES[placed_cell_index];
                             self.pending_digit_houses[digit_index] &= CLEAR_HOUSE_INDEXES[placed_cell_index];
