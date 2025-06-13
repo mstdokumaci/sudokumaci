@@ -236,11 +236,11 @@ fn generate_row_bands_and_union() struct { [3][512]u192, [3][512]usize } {
     @setEvalBranchQuota(100000);
     var row_bands: [3][512]u192 = .{.{0} ** 512} ** 3;
     var row_bands_union: [3][512]usize = .{.{0} ** 512} ** 3;
-    for (0..512) |row_cells| {
-        for (VALID_BAND_CELLS, 0..) |band_cells, band_index| {
-            const band_first_row: usize = band_cells & 0b111111111;
-            const band_second_row: usize = band_cells >> 9 & 0b111111111;
-            const band_third_row: usize = band_cells >> 18 & 0b111111111;
+    for (VALID_BAND_CELLS, 0..) |band_cells, band_index| {
+        const band_first_row: usize = band_cells & 0b111111111;
+        const band_second_row: usize = band_cells >> 9 & 0b111111111;
+        const band_third_row: usize = band_cells >> 18 & 0b111111111;
+        for (0..512) |row_cells| {
             if (band_first_row & row_cells == band_first_row) {
                 row_bands[0][row_cells] |= 1 << band_index;
                 row_bands_union[0][row_cells] |= band_cells;
