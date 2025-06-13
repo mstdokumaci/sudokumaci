@@ -215,6 +215,9 @@ fn generate_valid_band_cells() [162]usize {
     for (0..3) |row_index| {
         var index: u8 = 0;
         for (valid_band_cells) |band_cells| {
+            if (band_cells == 0) {
+                break;
+            }
             const columns: usize = (band_cells & BAND_HOUSE_CELLS[row_index]) >> row_index * 9;
             for (0..9) |col_index| {
                 if (columns & BIT9[col_index] != 0) {
