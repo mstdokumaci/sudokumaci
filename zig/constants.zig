@@ -232,10 +232,9 @@ fn generate_valid_band_cells() [162]usize {
 
 pub const VALID_BAND_CELLS = generate_valid_band_cells();
 
-fn generate_row_bands_and_union() struct { [3][512]u192, [3][512]usize } {
+fn generate_row_bands() [3][512]u192 {
     @setEvalBranchQuota(100000);
     var row_bands: [3][512]u192 = .{.{0} ** 512} ** 3;
-    var row_bands_union: [3][512]usize = .{.{0} ** 512} ** 3;
     for (VALID_BAND_CELLS, 0..) |band_cells, band_index| {
         const band_first_row: usize = band_cells & 0b111111111;
         const band_second_row: usize = band_cells >> 9 & 0b111111111;
@@ -243,25 +242,104 @@ fn generate_row_bands_and_union() struct { [3][512]u192, [3][512]usize } {
         for (0..512) |row_cells| {
             if (band_first_row & row_cells == band_first_row) {
                 row_bands[0][row_cells] |= 1 << band_index;
-                row_bands_union[0][row_cells] |= band_cells;
             }
             if (band_second_row & row_cells == band_second_row) {
                 row_bands[1][row_cells] |= 1 << band_index;
-                row_bands_union[1][row_cells] |= band_cells;
             }
             if (band_third_row & row_cells == band_third_row) {
                 row_bands[2][row_cells] |= 1 << band_index;
-                row_bands_union[2][row_cells] |= band_cells;
             }
         }
     }
 
-    return .{ row_bands, row_bands_union };
+    return row_bands;
 }
 
-const ROW_BANDS_AND_UNION = generate_row_bands_and_union();
-pub const ROW_BANDS = ROW_BANDS_AND_UNION[0];
-pub const ROW_BANDS_UNION = ROW_BANDS_AND_UNION[1];
+pub const ROW_BANDS = generate_row_bands();
+
+fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
+    @setEvalBranchQuota(10000);
+    var board_matches: [108]u128 = undefined;
+    var board_clears: [108]u128 = undefined;
+    var index: usize = 0;
+    for (0..9) |box| {
+        const first_row = (box / 3) * 3;
+        for (first_row..first_row + 3) |row| {
+            const pattern_a = (ALL81 ^ HOUSE_CELLS[row]) | HOUSE_CELLS[box + 18];
+            const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
+            board_matches[index] = pattern_a;
+            board_clears[index] = pattern_b;
+            index += 1;
+            board_matches[index] = pattern_b;
+            board_clears[index] = pattern_a;
+            index += 1;
+        }
+        const first_col = (box % 3) * 3;
+        for (first_col..first_col + 3) |col| {
+            const pattern_a = (ALL81 ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
+            const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
+            board_matches[index] = pattern_a;
+            board_clears[index] = pattern_b;
+            index += 1;
+            board_matches[index] = pattern_b;
+            board_clears[index] = pattern_a;
+            index += 1;
+        }
+    }
+    return .{ board_matches, board_clears };
+}
+
+const BOARD_CLEARS_AND_MATCHES = generate_board_matches_and_clears();
+const BOARD_MATCHES = BOARD_CLEARS_AND_MATCHES[0];
+pub const BOARD_CLEARS = BOARD_CLEARS_AND_MATCHES[1];
+
+fn generate_row_board_clears() [9][512]u128 {
+    @setEvalBranchQuota(1000000);
+    var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
+    for (BOARD_MATCHES, 0..) |board_match, clear_index| {
+        const match_cells_0 = board_match & 0b111111111;
+        const match_cells_1 = (board_match >> 9) & 0b111111111;
+        const match_cells_2 = (board_match >> 18) & 0b111111111;
+        const match_cells_3 = (board_match >> 27) & 0b111111111;
+        const match_cells_4 = (board_match >> 36) & 0b111111111;
+        const match_cells_5 = (board_match >> 45) & 0b111111111;
+        const match_cells_6 = (board_match >> 54) & 0b111111111;
+        const match_cells_7 = (board_match >> 63) & 0b111111111;
+        const match_cells_8 = (board_match >> 72) & 0b111111111;
+        for (0..512) |row_cells| {
+            if (match_cells_0 & row_cells == row_cells) {
+                row_board_clears[0][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_1 & row_cells == row_cells) {
+                row_board_clears[1][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_2 & row_cells == row_cells) {
+                row_board_clears[2][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_3 & row_cells == row_cells) {
+                row_board_clears[3][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_4 & row_cells == row_cells) {
+                row_board_clears[4][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_5 & row_cells == row_cells) {
+                row_board_clears[5][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_6 & row_cells == row_cells) {
+                row_board_clears[6][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_7 & row_cells == row_cells) {
+                row_board_clears[7][row_cells] |= 1 << clear_index;
+            }
+            if (match_cells_8 & row_cells == row_cells) {
+                row_board_clears[8][row_cells] |= 1 << clear_index;
+            }
+        }
+    }
+    return row_board_clears;
+}
+
+pub const ROW_BOARD_CLEARS = generate_row_board_clears();
 
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);

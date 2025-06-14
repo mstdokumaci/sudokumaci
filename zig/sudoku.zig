@@ -11,7 +11,8 @@ const CLEAR_HOUSES = @import("constants.zig").CLEAR_HOUSES;
 const CLEAR_HOUSE_INDEXES = @import("constants.zig").CLEAR_HOUSE_INDEXES;
 const VALID_BAND_CELLS = @import("constants.zig").VALID_BAND_CELLS;
 const ROW_BANDS = @import("constants.zig").ROW_BANDS;
-const ROW_BANDS_UNION = @import("constants.zig").ROW_BANDS_UNION;
+const BOARD_CLEARS = @import("constants.zig").BOARD_CLEARS;
+const ROW_BOARD_CLEARS = @import("constants.zig").ROW_BOARD_CLEARS;
 const DIGIT_COMPATIBLE_BANDS = @import("constants.zig").DIGIT_COMPATIBLE_BANDS;
 const BOARD_COMPATIBLE_BANDS = @import("constants.zig").BOARD_COMPATIBLE_BANDS;
 
@@ -75,11 +76,19 @@ pub const Sudoku = struct {
                 }
                 if (pruned_current_candidate_cells != current_candidate_cells.*) {
                     current_candidate_cells.* = pruned_current_candidate_cells;
-                    if (candidate_count < 28) {
-                        // Apply the union of row bands to prune candidates further
-                        current_candidate_cells.* &= @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)]) |
-                            @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)]) << 27 |
-                            @as(u128, ROW_BANDS_UNION[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS_UNION[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS_UNION[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)]) << 54;
+                    if (candidate_count < 35) {
+                        var board_clears_biterate = ROW_BOARD_CLEARS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
+                            ROW_BOARD_CLEARS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[3][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[4][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[5][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[6][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[7][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
+                            ROW_BOARD_CLEARS[8][@truncate(current_candidate_cells.* >> 72 & 0b111111111)];
+                        while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {
+                            current_candidate_cells.* &= BOARD_CLEARS[@ctz(board_clears_biterate)];
+                        }
                     }
                     var hidden_singles_biterate: u128 = current_candidate_cells.* & ~other_digits_candidates_union;
                     while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
