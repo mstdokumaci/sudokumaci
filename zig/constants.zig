@@ -297,42 +297,15 @@ fn generate_row_board_clears() [9][512]u128 {
     @setEvalBranchQuota(1000000);
     var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
     for (BOARD_MATCHES, 0..) |board_match, clear_index| {
-        const match_cells_0 = board_match & 0b111111111;
-        const match_cells_1 = (board_match >> 9) & 0b111111111;
-        const match_cells_2 = (board_match >> 18) & 0b111111111;
-        const match_cells_3 = (board_match >> 27) & 0b111111111;
-        const match_cells_4 = (board_match >> 36) & 0b111111111;
-        const match_cells_5 = (board_match >> 45) & 0b111111111;
-        const match_cells_6 = (board_match >> 54) & 0b111111111;
-        const match_cells_7 = (board_match >> 63) & 0b111111111;
-        const match_cells_8 = (board_match >> 72) & 0b111111111;
-        for (0..512) |row_cells| {
-            if (match_cells_0 & row_cells == row_cells) {
-                row_board_clears[0][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_1 & row_cells == row_cells) {
-                row_board_clears[1][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_2 & row_cells == row_cells) {
-                row_board_clears[2][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_3 & row_cells == row_cells) {
-                row_board_clears[3][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_4 & row_cells == row_cells) {
-                row_board_clears[4][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_5 & row_cells == row_cells) {
-                row_board_clears[5][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_6 & row_cells == row_cells) {
-                row_board_clears[6][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_7 & row_cells == row_cells) {
-                row_board_clears[7][row_cells] |= 1 << clear_index;
-            }
-            if (match_cells_8 & row_cells == row_cells) {
-                row_board_clears[8][row_cells] |= 1 << clear_index;
+        var match_cells: [9]usize = undefined;
+        for (0..9) |row| {
+            match_cells[row] = (board_match >> (row * 9)) & 0b111111111;
+        }
+        for (1..512) |row_cells| {
+            for (0..9) |row| {
+                if (match_cells[row] & row_cells == row_cells) {
+                    row_board_clears[row][row_cells] |= 1 << clear_index;
+                }
             }
         }
     }
