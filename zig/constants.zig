@@ -297,13 +297,13 @@ fn generate_row_board_clears() [9][512]u128 {
     @setEvalBranchQuota(1000000);
     var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
     for (BOARD_MATCHES, 0..) |board_match, clear_index| {
-        var match_cells: [9]usize = undefined;
+        var match_rows: [9]usize = undefined;
         for (0..9) |row| {
-            match_cells[row] = (board_match >> (row * 9)) & 0b111111111;
+            match_rows[row] = (board_match >> (row * 9)) & 0b111111111;
         }
         for (1..512) |row_cells| {
             for (0..9) |row| {
-                if (match_cells[row] & row_cells == row_cells) {
+                if (match_rows[row] & row_cells == row_cells) {
                     row_board_clears[row][row_cells] |= 1 << clear_index;
                 }
             }
