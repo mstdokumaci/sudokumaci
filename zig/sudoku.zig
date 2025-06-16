@@ -76,6 +76,17 @@ pub const Sudoku = struct {
                 }
                 if (pruned_current_candidate_cells != current_candidate_cells.*) {
                     current_candidate_cells.* = pruned_current_candidate_cells;
+                    var hidden_singles_biterate: u128 = current_candidate_cells.* & ~other_digits_candidates_union;
+                    while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
+                        const placed_cell_index = @ctz(hidden_singles_biterate);
+                        const hidden_singles_pruned = current_candidate_cells.* & CLEAR_HOUSES[placed_cell_index];
+                        if (hidden_singles_pruned != current_candidate_cells.*) {
+                            current_candidate_cells.* = hidden_singles_pruned;
+                            self.pending_digit_houses[digit_index] &= CLEAR_HOUSE_INDEXES[placed_cell_index];
+                            new_placements[digit_index] |= hidden_singles_biterate;
+                            have_new_placements = true;
+                        }
+                    }
                     if (candidate_count < 35) {
                         var board_clears_biterate = ROW_BOARD_CLEARS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
                             ROW_BOARD_CLEARS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
@@ -91,10 +102,6 @@ pub const Sudoku = struct {
                         while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {
                             current_candidate_cells.* &= BOARD_CLEARS[@ctz(board_clears_biterate)];
                         }
-                    }
-                    var hidden_singles_biterate: u128 = current_candidate_cells.* & ~other_digits_candidates_union;
-                    while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
-                        current_candidate_cells.* &= CLEAR_HOUSES[@ctz(hidden_singles_biterate)];
                     }
                     var houses_biterate = self.pending_digit_houses[digit_index];
                     while (houses_biterate > 0) : (houses_biterate &= houses_biterate - 1) {
