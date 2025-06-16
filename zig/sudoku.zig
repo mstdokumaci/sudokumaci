@@ -86,6 +86,8 @@ pub const Sudoku = struct {
                             ROW_BOARD_CLEARS[6][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
                             ROW_BOARD_CLEARS[7][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
                             ROW_BOARD_CLEARS[8][@truncate(current_candidate_cells.* >> 72 & 0b111111111)];
+                        const reduce = (board_clears_biterate >> 54) ^ (board_clears_biterate & 0b111111111111111111111111111111111111111111111111111111);
+                        board_clears_biterate &= (reduce << 54) | reduce;
                         while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {
                             current_candidate_cells.* &= BOARD_CLEARS[@ctz(board_clears_biterate)];
                         }

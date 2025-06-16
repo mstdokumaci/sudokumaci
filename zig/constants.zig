@@ -269,9 +269,8 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
             board_matches[index] = pattern_a;
             board_clears[index] = pattern_b;
-            index += 1;
-            board_matches[index] = pattern_b;
-            board_clears[index] = pattern_a;
+            board_matches[index + 54] = pattern_b;
+            board_clears[index + 54] = pattern_a;
             index += 1;
         }
         const first_col = (box % 3) * 3;
@@ -280,9 +279,8 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
             board_matches[index] = pattern_a;
             board_clears[index] = pattern_b;
-            index += 1;
-            board_matches[index] = pattern_b;
-            board_clears[index] = pattern_a;
+            board_matches[index + 54] = pattern_b;
+            board_clears[index + 54] = pattern_a;
             index += 1;
         }
     }
