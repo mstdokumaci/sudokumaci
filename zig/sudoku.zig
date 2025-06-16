@@ -79,10 +79,11 @@ pub const Sudoku = struct {
                     var hidden_singles_biterate: u128 = current_candidate_cells.* & ~other_digits_candidates_union;
                     while (hidden_singles_biterate > 0) : (hidden_singles_biterate &= hidden_singles_biterate - 1) {
                         const placed_cell_index = @ctz(hidden_singles_biterate);
-                        const hidden_singles_pruned = current_candidate_cells.* & CLEAR_HOUSES[placed_cell_index];
-                        if (hidden_singles_pruned != current_candidate_cells.*) {
-                            current_candidate_cells.* = hidden_singles_pruned;
-                            self.pending_digit_houses[digit_index] &= CLEAR_HOUSE_INDEXES[placed_cell_index];
+                        const pending_houses_pruned = self.pending_digit_houses[digit_index] & CLEAR_HOUSE_INDEXES[placed_cell_index];
+                        if (pending_houses_pruned != self.pending_digit_houses[digit_index]) {
+                            // We found a hidden single, update the candidate cells and pending houses
+                            self.pending_digit_houses[digit_index] = pending_houses_pruned;
+                            current_candidate_cells.* &= CLEAR_HOUSES[placed_cell_index];
                             new_placements[digit_index] |= hidden_singles_biterate;
                             have_new_placements = true;
                         }
