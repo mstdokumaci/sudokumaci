@@ -98,6 +98,7 @@ pub const Sudoku = struct {
                             ROW_BOARD_CLEARS[6][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
                             ROW_BOARD_CLEARS[7][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
                             ROW_BOARD_CLEARS[8][@truncate(current_candidate_cells.* >> 72 & 0b111111111)];
+                        // When a pattern and the reversed version matches together, there is nothing to clear, we can ignore both
                         const reduce = (board_clears_biterate >> 54) ^ (board_clears_biterate & 0b111111111111111111111111111111111111111111111111111111);
                         board_clears_biterate &= (reduce << 54) | reduce;
                         while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {

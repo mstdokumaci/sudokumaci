@@ -262,6 +262,7 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
     var board_matches: [108]u128 = undefined;
     var board_clears: [108]u128 = undefined;
     var index: usize = 0;
+    var reverse_index: usize = 54;
     for (0..9) |box| {
         const first_row = (box / 3) * 3;
         for (first_row..first_row + 3) |row| {
@@ -269,9 +270,10 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
             board_matches[index] = pattern_a;
             board_clears[index] = pattern_b;
-            board_matches[index + 54] = pattern_b;
-            board_clears[index + 54] = pattern_a;
             index += 1;
+            board_matches[reverse_index] = pattern_b;
+            board_clears[reverse_index] = pattern_a;
+            reverse_index += 1;
         }
         const first_col = (box % 3) * 3;
         for (first_col..first_col + 3) |col| {
@@ -279,9 +281,10 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
             board_matches[index] = pattern_a;
             board_clears[index] = pattern_b;
-            board_matches[index + 54] = pattern_b;
-            board_clears[index + 54] = pattern_a;
             index += 1;
+            board_matches[reverse_index] = pattern_b;
+            board_clears[reverse_index] = pattern_a;
+            reverse_index += 1;
         }
     }
     return .{ board_matches, board_clears };
