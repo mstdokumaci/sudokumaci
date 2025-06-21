@@ -257,9 +257,28 @@ fn generate_row_bands() [3][512]u192 {
 
 pub const ROW_BANDS = generate_row_bands();
 
-fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
-    @setEvalBranchQuota(10000);
-    var board_matches: [108]u128 = undefined;
+fn upadate_row_board_clears(row_board_clears: *[9][512]u128, index: usize, reverse_index: usize, pattern_a: u128, pattern_b: u128) void {
+    var match_rows_a: [9]usize = undefined;
+    var match_rows_b: [9]usize = undefined;
+    for (0..9) |row| {
+        match_rows_a[row] = (pattern_a >> (row * 9)) & 0b111111111;
+        match_rows_b[row] = (pattern_b >> (row * 9)) & 0b111111111;
+    }
+    for (1..512) |row_cells| {
+        for (0..9) |row| {
+            if (match_rows_a[row] & row_cells == row_cells) {
+                row_board_clears[row][row_cells] |= 1 << index;
+            }
+            if (match_rows_b[row] & row_cells == row_cells) {
+                row_board_clears[row][row_cells] |= 1 << reverse_index;
+            }
+        }
+    }
+}
+
+fn generate_board_clears() struct { [9][512]u128, [108]u128 } {
+    @setEvalBranchQuota(1000000);
+    var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
     var board_clears: [108]u128 = undefined;
     var index: usize = 0;
     var reverse_index: usize = 54;
@@ -268,10 +287,9 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
         for (first_row..first_row + 3) |row| {
             const pattern_a = (ALL81 ^ HOUSE_CELLS[row]) | HOUSE_CELLS[box + 18];
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
-            board_matches[index] = pattern_a;
+            upadate_row_board_clears(&row_board_clears, index, reverse_index, pattern_a, pattern_b);
             board_clears[index] = pattern_b;
             index += 1;
-            board_matches[reverse_index] = pattern_b;
             board_clears[reverse_index] = pattern_a;
             reverse_index += 1;
         }
@@ -279,41 +297,19 @@ fn generate_board_matches_and_clears() struct { [108]u128, [108]u128 } {
         for (first_col..first_col + 3) |col| {
             const pattern_a = (ALL81 ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
-            board_matches[index] = pattern_a;
+            upadate_row_board_clears(&row_board_clears, index, reverse_index, pattern_a, pattern_b);
             board_clears[index] = pattern_b;
             index += 1;
-            board_matches[reverse_index] = pattern_b;
             board_clears[reverse_index] = pattern_a;
             reverse_index += 1;
         }
     }
-    return .{ board_matches, board_clears };
+    return .{ row_board_clears, board_clears };
 }
 
-const BOARD_CLEARS_AND_MATCHES = generate_board_matches_and_clears();
-const BOARD_MATCHES = BOARD_CLEARS_AND_MATCHES[0];
+const BOARD_CLEARS_AND_MATCHES = generate_board_clears();
+pub const ROW_BOARD_CLEARS = BOARD_CLEARS_AND_MATCHES[0];
 pub const BOARD_CLEARS = BOARD_CLEARS_AND_MATCHES[1];
-
-fn generate_row_board_clears() [9][512]u128 {
-    @setEvalBranchQuota(1000000);
-    var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
-    for (BOARD_MATCHES, 0..) |board_match, clear_index| {
-        var match_rows: [9]usize = undefined;
-        for (0..9) |row| {
-            match_rows[row] = (board_match >> (row * 9)) & 0b111111111;
-        }
-        for (1..512) |row_cells| {
-            for (0..9) |row| {
-                if (match_rows[row] & row_cells == row_cells) {
-                    row_board_clears[row][row_cells] |= 1 << clear_index;
-                }
-            }
-        }
-    }
-    return row_board_clears;
-}
-
-pub const ROW_BOARD_CLEARS = generate_row_board_clears();
 
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
