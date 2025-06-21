@@ -92,6 +92,7 @@ pub const Sudoku = struct {
                         var found = true;
                         while (found) {
                             found = false;
+                            // find matching ones out of all 108 clear patterns
                             var board_clears_biterate = ROW_BOARD_CLEARS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
                                 ROW_BOARD_CLEARS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
                                 ROW_BOARD_CLEARS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] &
