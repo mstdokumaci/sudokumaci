@@ -276,7 +276,7 @@ fn upadate_row_board_clears(row_board_clears: *[9][512]u128, index: usize, rever
     }
 }
 
-fn generate_board_clears() struct { [9][512]u128, [108]u128 } {
+fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
     @setEvalBranchQuota(1000000);
     var row_board_clears: [9][512]u128 = .{.{0} ** 512} ** 9;
     var board_clears: [108]u128 = undefined;
@@ -307,9 +307,9 @@ fn generate_board_clears() struct { [9][512]u128, [108]u128 } {
     return .{ row_board_clears, board_clears };
 }
 
-const BOARD_CLEARS_AND_MATCHES = generate_board_clears();
-pub const ROW_BOARD_CLEARS = BOARD_CLEARS_AND_MATCHES[0];
-pub const BOARD_CLEARS = BOARD_CLEARS_AND_MATCHES[1];
+const ROW_BASED_BOARD_CLEARS = generate_row_based_board_clears();
+pub const ROW_BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[0];
+pub const BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[1];
 
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
