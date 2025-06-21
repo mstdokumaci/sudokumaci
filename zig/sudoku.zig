@@ -88,21 +88,26 @@ pub const Sudoku = struct {
                             have_new_placements = true;
                         }
                     }
-                    if (candidate_count < 35) {
-                        var board_clears_biterate = ROW_BOARD_CLEARS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
-                            ROW_BOARD_CLEARS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[3][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[4][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[5][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[6][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[7][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
-                            ROW_BOARD_CLEARS[8][@truncate(current_candidate_cells.* >> 72 & 0b111111111)];
-                        // When a pattern and the reversed version matches together, there is nothing to clear, we can ignore both
-                        const reduce = (board_clears_biterate >> 54) ^ (board_clears_biterate & 0b111111111111111111111111111111111111111111111111111111);
-                        board_clears_biterate &= (reduce << 54) | reduce;
-                        while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {
-                            current_candidate_cells.* &= BOARD_CLEARS[@ctz(board_clears_biterate)];
+                    if (candidate_count < 40) {
+                        var found = true;
+                        while (found) {
+                            found = false;
+                            var board_clears_biterate = ROW_BOARD_CLEARS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
+                                ROW_BOARD_CLEARS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[3][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[4][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[5][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[6][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[7][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
+                                ROW_BOARD_CLEARS[8][@truncate(current_candidate_cells.* >> 72 & 0b111111111)];
+                            // When a pattern and the reversed version matches together, there is nothing to clear, we can ignore both
+                            const reduce = (board_clears_biterate >> 54) ^ (board_clears_biterate & 0b111111111111111111111111111111111111111111111111111111);
+                            board_clears_biterate &= (reduce << 54) | reduce;
+                            found = board_clears_biterate > 0;
+                            while (board_clears_biterate > 0) : (board_clears_biterate &= board_clears_biterate - 1) {
+                                current_candidate_cells.* &= BOARD_CLEARS[@ctz(board_clears_biterate)];
+                            }
                         }
                     }
                     var houses_biterate = self.pending_digit_houses[digit_index];
