@@ -258,18 +258,20 @@ fn generate_row_bands() [3][512]u192 {
 pub const ROW_BANDS = generate_row_bands();
 
 fn upadate_row_board_clears(row_board_clears: *[9][512]u128, index: usize, reverse_index: usize, pattern_a: u128, pattern_b: u128) void {
-    var match_rows_a: [9]usize = undefined;
-    var match_rows_b: [9]usize = undefined;
     for (0..9) |row| {
-        match_rows_a[row] = (pattern_a >> (row * 9)) & 0b111111111;
-        match_rows_b[row] = (pattern_b >> (row * 9)) & 0b111111111;
-    }
-    for (1..512) |row_cells| {
-        for (0..9) |row| {
-            if (match_rows_a[row] & row_cells == row_cells) {
+        const pattern_a_row = (pattern_a >> (row * 9)) & 0b111111111;
+        const pattern_b_row = (pattern_b >> (row * 9)) & 0b111111111;
+        var max_row = 0;
+        if (pattern_a_row > pattern_b_row) {
+            max_row = pattern_a_row;
+        } else {
+            max_row = pattern_b_row;
+        }
+        for (1..max_row) |row_cells| {
+            if (pattern_a_row & row_cells == row_cells) {
                 row_board_clears[row][row_cells] |= 1 << index;
             }
-            if (match_rows_b[row] & row_cells == row_cells) {
+            if (pattern_b_row & row_cells == row_cells) {
                 row_board_clears[row][row_cells] |= 1 << reverse_index;
             }
         }
