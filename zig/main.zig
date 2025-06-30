@@ -38,8 +38,6 @@ pub fn main() !void {
     const file_contents = try file.readToEndAlloc(std.heap.c_allocator, std.math.maxInt(usize));
     defer std.heap.c_allocator.free(file_contents);
 
-    const stdout = std.io.getStdOut().writer();
-
     var results = std.ArrayList(u8).init(std.heap.c_allocator);
     defer results.deinit();
     try results.ensureTotalCapacity(9_000_000);
@@ -65,5 +63,6 @@ pub fn main() !void {
         }
     }
 
+    const stdout = std.io.getStdOut().writer();
     try stdout.writeAll(results.items[0 .. count * 164 - 1]);
 }
