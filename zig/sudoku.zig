@@ -159,9 +159,18 @@ pub const Sudoku = struct {
         // Calculate the candidate cell bands for the current digit
         const current_candidate_cells = &self.digit_candidate_cells[digit_index];
         const candidate_cell_bands: [3]u192 = .{
-            ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] & reduced_bands[0],
-            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] & reduced_bands[1],
-            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] & ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] & ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)] & reduced_bands[2],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* & 0b111111111)] &
+                ROW_BANDS[1][@truncate(current_candidate_cells.* >> 9 & 0b111111111)] &
+                ROW_BANDS[2][@truncate(current_candidate_cells.* >> 18 & 0b111111111)] &
+                reduced_bands[0],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 27 & 0b111111111)] &
+                ROW_BANDS[1][@truncate(current_candidate_cells.* >> 36 & 0b111111111)] &
+                ROW_BANDS[2][@truncate(current_candidate_cells.* >> 45 & 0b111111111)] &
+                reduced_bands[1],
+            ROW_BANDS[0][@truncate(current_candidate_cells.* >> 54 & 0b111111111)] &
+                ROW_BANDS[1][@truncate(current_candidate_cells.* >> 63 & 0b111111111)] &
+                ROW_BANDS[2][@truncate(current_candidate_cells.* >> 72 & 0b111111111)] &
+                reduced_bands[2],
         };
 
         var band0_biterate = candidate_cell_bands[0];
