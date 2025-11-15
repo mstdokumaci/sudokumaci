@@ -62,6 +62,5 @@ pub fn main() !void {
         threads[thread_index].join();
     }
 
-    const stdout = std.io.getStdOut().writer();
-    try stdout.writeAll(results[0 .. count * 164 - 1]);
+    try std.fs.File.stdout().writeAll(results[0 .. count * 164 - 1]);
 }
