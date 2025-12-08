@@ -7,13 +7,14 @@ var next_thread_index: usize = 0;
 
 fn solve(thread_index: usize, batch_size: usize, count: usize, results: []u8) !void {
     var start = thread_index * batch_size;
+    var sudoku = Sudoku{};
     while (start < count) {
         const end = @min(start + batch_size, count);
         for (start..end) |puzzle_index| {
-            var sudoku = Sudoku{};
+            sudoku.reset();
             const result_index = puzzle_index * 164;
             results[result_index + 81] = ',';
-            @memcpy(results[result_index + 82 ..], &sudoku.solve(results[result_index .. result_index + 81]));
+            sudoku.solve(results[result_index + 82 .. result_index + 163], results[result_index .. result_index + 81]);
             results[result_index + 163] = '\n';
         }
         const new_thread_index = @atomicRmw(usize, &next_thread_index, AtomicRmwOp.Add, 1, AtomicOrder.monotonic);
