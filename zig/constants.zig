@@ -12,7 +12,7 @@
 // - CLEAR_*: Masks for eliminating candidates from peer cells
 // - VALID_BAND_CELLS: The 162 valid ways to place a digit in a 3x9 band
 // - ROW_BANDS: Row mask → compatible band patterns
-// - *_COMPATIBLE_BANDS: Pattern compatibility for search pruning
+// - PATTERNS_FOR_*: Pattern compatibility for search pruning
 // - ROW_BOARD_CLEARS: Pattern matching for box-line reduction
 //
 // =============================================================================
@@ -443,15 +443,17 @@ pub const BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[1];
 // When searching for valid digit placements, we need to know which band patterns
 // are compatible with each other:
 //
-// 1. DIGIT_COMPATIBLE_BANDS: Patterns that don't share any cells
-//    (for the same digit across different bands)
+// 1. PATTERNS_FOR_OTHER_DIGITS: Patterns that don't share any cells
+//    Used to reserve space for future digits - if we use pattern P for digit 5,
+//    other digits can only use patterns that don't overlap with P's cells.
 //
-// 2. BOARD_COMPATIBLE_BANDS: Patterns that use different column sets
-//    (for placing multiple digits in the same band over the puzzle's life)
+// 2. PATTERNS_FOR_SAME_DIGIT: Patterns that use different column sets
+//    Used when placing all 9 instances of a single digit - the 3 band patterns
+//    must use disjoint columns (since each digit appears once per column).
 //
 
-/// DIGIT_COMPATIBLE_BANDS[p] = patterns that share no cells with pattern p
-/// Used when combining 3 band patterns for a single digit
+/// PATTERNS_FOR_OTHER_DIGITS[p] = patterns that share no cells with pattern p
+/// Reserves space: if digit D uses pattern p, other digits can only use these patterns
 fn generate_digit_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
     var compat: [162]u192 = undefined;
@@ -469,10 +471,10 @@ fn generate_digit_compatible_bands() [162]u192 {
     return compat;
 }
 
-pub const DIGIT_COMPATIBLE_BANDS = generate_digit_compatible_bands();
+pub const PATTERNS_FOR_OTHER_DIGITS = generate_digit_compatible_bands();
 
-/// BOARD_COMPATIBLE_BANDS[p] = patterns that use completely different columns
-/// Used when placing the same digit's 3 band patterns across 3 bands
+/// PATTERNS_FOR_SAME_DIGIT[p] = patterns that use completely different columns
+/// Column constraint: a digit's 3 band patterns must cover disjoint column sets
 fn generate_board_compatible_bands() [162]u192 {
     @setEvalBranchQuota(100000);
     var compat: [162]u192 = undefined;
@@ -494,4 +496,4 @@ fn generate_board_compatible_bands() [162]u192 {
     return compat;
 }
 
-pub const BOARD_COMPATIBLE_BANDS = generate_board_compatible_bands();
+pub const PATTERNS_FOR_SAME_DIGIT = generate_board_compatible_bands();

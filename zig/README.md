@@ -179,8 +179,8 @@ All lookup tables are generated at compile time using Zig's `comptime`:
 | `VALID_BAND_CELLS[162]` | 162 patterns | All valid digit placements in a band |
 | `ROW_BANDS[3][512]` | 3×512 entries | Row mask → compatible band patterns |
 | `ROW_BOARD_CLEARS[9][512]` | 9×512 entries | Row mask → applicable reductions |
-| `DIGIT_COMPATIBLE_BANDS[162]` | 162 bitmasks | Pattern → non-overlapping patterns |
-| `BOARD_COMPATIBLE_BANDS[162]` | 162 bitmasks | Pattern → column-compatible patterns |
+| `PATTERNS_FOR_OTHER_DIGITS[162]` | 162 bitmasks | Pattern → non-overlapping patterns |
+| `PATTERNS_FOR_SAME_DIGIT[162]` | 162 bitmasks | Pattern → column-compatible patterns |
 
 This means **zero runtime overhead** for pattern enumeration!
 

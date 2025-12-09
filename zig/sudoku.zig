@@ -27,8 +27,8 @@ const VALID_BAND_CELLS = constants.VALID_BAND_CELLS; // 162 valid digit placemen
 const ROW_BANDS = constants.ROW_BANDS; // Row mask → compatible band patterns
 const BOARD_CLEARS = constants.BOARD_CLEARS; // Box-line reduction masks
 const ROW_BOARD_CLEARS = constants.ROW_BOARD_CLEARS; // Row mask → applicable reductions
-const DIGIT_COMPATIBLE_BANDS = constants.DIGIT_COMPATIBLE_BANDS; // Non-overlapping band patterns
-const BOARD_COMPATIBLE_BANDS = constants.BOARD_COMPATIBLE_BANDS; // Column-compatible band patterns
+const PATTERNS_FOR_OTHER_DIGITS = constants.PATTERNS_FOR_OTHER_DIGITS; // Non-overlapping band patterns
+const PATTERNS_FOR_SAME_DIGIT = constants.PATTERNS_FOR_SAME_DIGIT; // Column-compatible band patterns
 
 // ASCII constants for parsing
 const ASCII_ZERO: u8 = '0'; // = 48
@@ -313,20 +313,20 @@ pub const Sudoku = struct {
         var band0_iter = valid_patterns[0];
         while (band0_iter > 0) : (band0_iter = clearLowestBit(band0_iter)) {
             const pattern0 = @ctz(band0_iter);
-            patterns_to_reserve[0] = available_patterns[0] & DIGIT_COMPATIBLE_BANDS[pattern0];
+            patterns_to_reserve[0] = available_patterns[0] & PATTERNS_FOR_OTHER_DIGITS[pattern0];
 
             // Skip if this pattern blocks all future patterns (unless we're on the last digit)
             if (patterns_to_reserve[0] != 0 or saved_pending_digits == 0) {
-                var band1_iter = valid_patterns[1] & BOARD_COMPATIBLE_BANDS[pattern0];
+                var band1_iter = valid_patterns[1] & PATTERNS_FOR_SAME_DIGIT[pattern0];
                 while (band1_iter > 0) : (band1_iter = clearLowestBit(band1_iter)) {
                     const pattern1 = @ctz(band1_iter);
-                    patterns_to_reserve[1] = available_patterns[1] & DIGIT_COMPATIBLE_BANDS[pattern1];
+                    patterns_to_reserve[1] = available_patterns[1] & PATTERNS_FOR_OTHER_DIGITS[pattern1];
 
                     if (patterns_to_reserve[1] != 0 or saved_pending_digits == 0) {
-                        var band2_iter = valid_patterns[2] & BOARD_COMPATIBLE_BANDS[pattern0] & BOARD_COMPATIBLE_BANDS[pattern1];
+                        var band2_iter = valid_patterns[2] & PATTERNS_FOR_SAME_DIGIT[pattern0] & PATTERNS_FOR_SAME_DIGIT[pattern1];
                         while (band2_iter > 0) : (band2_iter = clearLowestBit(band2_iter)) {
                             const pattern2 = @ctz(band2_iter);
-                            patterns_to_reserve[2] = available_patterns[2] & DIGIT_COMPATIBLE_BANDS[pattern2];
+                            patterns_to_reserve[2] = available_patterns[2] & PATTERNS_FOR_OTHER_DIGITS[pattern2];
 
                             if (patterns_to_reserve[2] != 0 or saved_pending_digits == 0) {
                                 // ─────────────────────────────────────────────
