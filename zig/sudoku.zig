@@ -21,7 +21,13 @@ pub const Sudoku = struct {
     digit_candidate_cells: [9]u128 = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 },
     pending_digit_houses: [9]usize = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 },
 
-    pub fn solve(self: *Sudoku, cell_values: []const u8) [81]u8 {
+    pub fn reset(self: *Sudoku) void {
+        self.pending_digits = 0b111111111;
+        self.digit_candidate_cells = .{ ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81, ALL81 };
+        self.pending_digit_houses = .{ ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27, ALL27 };
+    }
+
+    pub fn solve(self: *Sudoku, out: []u8, cell_values: []const u8) void {
         var initial_fixed_placements: [9]u128 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         // Initialize digit candidate cells and fixed placements based on the input cell values
@@ -39,14 +45,12 @@ pub const Sudoku = struct {
         assert(self.find_valid_bands(most_constrained_digit_index, .{ ALL162, ALL162, ALL162 }));
 
         // Convert the solved state into a string representation
-        var solved: [81]u8 = undefined;
         for (&self.digit_candidate_cells, 0..) |*digit_cells, digit_index| {
             const digit_str = @as(u8, @truncate(digit_index)) + 49;
             while (digit_cells.* > 0) : (digit_cells.* &= digit_cells.* - 1) {
-                solved[@ctz(digit_cells.*)] = digit_str;
+                out[@ctz(digit_cells.*)] = digit_str;
             }
         }
-        return solved;
     }
 
     fn clear_for_placements(self: *Sudoku, placements_to_propagate: [9]u128) usize {
