@@ -1,6 +1,6 @@
 # Sudokumaci - Zig Sudoku Solver
 
-A high-performance Sudoku solver that solves 49,000+ puzzles per second on modern hardware. Instead of the traditional "guess a cell" backtracking, this solver places **entire digits at once** using a novel band-pattern approach.
+A high-performance Sudoku solver that solves ~750,000 puzzles per second on modern hardware. Instead of the traditional "guess a cell" backtracking, this solver places **entire digits at once** using a novel band-pattern approach.
 
 ## The Core Idea: Digit-Centric Solving
 
