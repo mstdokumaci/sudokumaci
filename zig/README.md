@@ -184,31 +184,34 @@ All lookup tables are generated at compile time using Zig's `comptime`:
 
 This means **zero runtime overhead** for pattern enumeration!
 
-## Concurrency: Work-Stealing
+## Concurrency: Dynamic Batch Assignment
 
-For batch processing, threads use a simple work-stealing model:
+For batch processing, threads dynamically claim work from a shared pool:
 
 ```
-┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐
-│Thread 0 │  │Thread 1 │  │Thread 2 │  │Thread 3 │
-└────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘
-     │            │            │            │
-     ▼            ▼            ▼            ▼
- ┌───────┐   ┌───────┐   ┌───────┐   ┌───────┐
- │Batch 0│   │Batch 1│   │Batch 2│   │Batch 3│
- └───────┘   └───────┘   └───────┘   └───────┘
-     │            │            │
-     │       Done! Steal:      │
-     │       ┌───────┐         │
-     │       │Batch 4│◄────────┘
-     │       └───────┘
-     ▼
- ┌───────┐
- │Batch 5│
- └───────┘
+                    Shared Atomic Counter
+                    ┌─────────────────┐
+                    │  next_batch: 4  │
+                    └────────┬────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+         ▼                   ▼                   ▼
+    ┌─────────┐         ┌─────────┐         ┌─────────┐
+    │Thread 0 │         │Thread 1 │         │Thread 2 │
+    │ Batch 0 │         │ Batch 1 │         │ Batch 2 │
+    │  done!  │         │working..│         │  done!  │
+    └────┬────┘         └─────────┘         └────┬────┘
+         │                                       │
+         └──► atomic_fetch_add ◄─────────────────┘
+                    │
+              "I got batch 4!"
+              "I got batch 5!"
 ```
 
-Threads atomically claim batches from a shared counter, ensuring all cores stay busy.
+Each thread atomically increments the counter to claim its next batch. Whoever finishes first gets the next available batch—no coordination, no waiting, no contention.
+
+**Note:** This is simpler than true "work-stealing" (where threads take from each other's queues). Here, all unclaimed work lives in one shared pool.
 
 ## Performance
 
