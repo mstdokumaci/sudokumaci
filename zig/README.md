@@ -226,7 +226,7 @@ On modern hardware, solving ~49,000 17-clue puzzles:
 ## Build & Run
 
 ### Requirements
-- Zig 0.14.0 or newer
+- Zig 0.15.0 or newer
 
 ### Build
 ```bash
@@ -239,7 +239,7 @@ zig build-exe -O ReleaseFast -mcpu=native main.zig
 ./main puzzles.txt > solutions.txt
 
 # Benchmark
-time ./main ../test-data/all_17_clue.sudokus > /dev/null
+time ./main ../test-data/all_17_clue.sudokus > ../test-data/all_17_clue.solved
 ```
 
 ### Input Format
