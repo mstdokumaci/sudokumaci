@@ -164,6 +164,14 @@ pub const Sudoku = struct {
         // Houses whose candidate counts may have changed since last scan
         var affected_houses = entry_affected_houses;
 
+        // Digits fully placed (removed from pending_digits) never enter the
+        // loop below, but their candidates still block other digits.
+        var prefix: u128 = 0;
+        var placed_digits = ALL_9_DIGITS ^ self.pending_digits;
+        while (placed_digits > 0) : (placed_digits = clearLowestBit(placed_digits)) {
+            prefix |= self.digit_candidate_cells[@ctz(placed_digits)];
+        }
+
         // ── suffix[i] = OR of digit_candidate_cells[j] for j >= i at call entry ──
         // Digits are processed in ascending order and only mutate their own
         // candidates, so at digit `i` the other digits' candidate union is
@@ -174,19 +182,13 @@ pub const Sudoku = struct {
         while (i > 0) : (i -= 1) {
             suffix[i - 1] = suffix[i] | self.digit_candidate_cells[i - 1];
         }
+
         // Union of all placements this call. Placement cell-sets are disjoint
         // across digits, so another digit's placements are exactly
         // total & ~new_placements[digit].
         var total_new_placements: u128 = 0;
         for (new_placements) |placements| {
             total_new_placements |= placements;
-        }
-        // Digits fully placed (removed from pending_digits) never enter the
-        // loop below, but their candidates still block other digits.
-        var prefix: u128 = 0;
-        var placed_digits = ALL_9_DIGITS ^ self.pending_digits;
-        while (placed_digits > 0) : (placed_digits = clearLowestBit(placed_digits)) {
-            prefix |= self.digit_candidate_cells[@ctz(placed_digits)];
         }
 
         // Process each pending digit
@@ -199,7 +201,6 @@ pub const Sudoku = struct {
                 // Step 1: Compute cells to clear (placed by other digits)
                 // ─────────────────────────────────────────────────────────────
                 const cells_used_by_other_digits = total_new_placements ^ new_placements[digit];
-                const other_digits_candidates = prefix | suffix[digit + 1];
 
                 // ─────────────────────────────────────────────────────────────
                 // Step 2: Apply constraints and check validity
@@ -220,7 +221,7 @@ pub const Sudoku = struct {
                     // Step 3: Find hidden singles
                     // Cells that are candidates for this digit but no other digit
                     // ─────────────────────────────────────────────────────────
-                    var unique_cells = candidates.* & ~other_digits_candidates;
+                    var unique_cells = candidates.* & ~(prefix | suffix[digit + 1]);
                     while (unique_cells > 0) : (unique_cells = clearLowestBit(unique_cells)) {
                         const cell = @ctz(unique_cells);
                         const houses_after_placement = self.pending_digit_houses[digit] & CLEAR_HOUSE_INDEXES[cell];
