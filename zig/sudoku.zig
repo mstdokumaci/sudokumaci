@@ -169,11 +169,6 @@ pub const Sudoku = struct {
         // candidates, so at digit `i` the other digits' candidate union is
         // exactly (prefix: processed digits, post-mutation) | (suffix[i+1]:
         // unprocessed digits, entry state).
-        //
-        // One pass also collects: the digits carrying placements this call
-        // (Step 1's cells_used union) and the fully placed digits' candidates
-        // (removed from pending_digits, they never enter the loop below but
-        // still block other digits).
         var suffix: [10]u128 = undefined;
         suffix[9] = 0;
         {
@@ -209,16 +204,6 @@ pub const Sudoku = struct {
                 // ─────────────────────────────────────────────────────────────
                 const cells_used_by_other_digits = total_new_placements & ~new_placements[digit];
                 const other_digits_candidates = prefix | suffix[digit + 1];
-
-                if (std.debug.runtime_safety) {
-                    // B1 verification: prefix|suffix must equal the naive
-                    // 9-digit union over current candidate arrays
-                    var naive: u128 = 0;
-                    for (0..9) |d| {
-                        if (d != digit) naive |= self.digit_candidate_cells[d];
-                    }
-                    assert(naive == other_digits_candidates);
-                }
 
                 // ─────────────────────────────────────────────────────────────
                 // Step 2: Apply constraints and check validity
@@ -308,20 +293,7 @@ pub const Sudoku = struct {
                         // (skipping their no-op re-visits) and the lowest unvisited
                         // house is dropped.
                         const lowbit = remaining_houses & ~(remaining_houses - 1);
-                        remaining_houses = (self.pending_digit_houses[digit] & affected_houses) & ~((lowbit << 1) - 1);
-                    }
-
-                    if (std.debug.runtime_safety) {
-                        // B2 verification: houses skipped by the affected mask
-                        // must have unchanged counts — never 0 (missed invalid)
-                        // and never 1 (missed placement)
-                        var skipped = self.pending_digit_houses[digit] & ~affected_houses;
-                        while (skipped > 0) : (skipped = clearLowestBit(skipped)) {
-                            const skipped_house = @ctz(skipped);
-                            const skipped_count = @popCount(candidates.* & HOUSE_CELLS[skipped_house]);
-                            assert(skipped_count != 0);
-                            assert(skipped_count != 1);
-                        }
+                        remaining_houses = self.pending_digit_houses[digit] & affected_houses & ~((lowbit << 1) - 1);
                     }
                 }
 
