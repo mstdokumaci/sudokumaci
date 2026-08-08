@@ -271,8 +271,12 @@ pub const Sudoku = struct {
                             reduction_found = matching_patterns > 0;
                             while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
                                 const pattern = @ctz(matching_patterns);
-                                candidates.* &= BOARD_CLEARS[pattern];
-                                affected_houses |= constants.PATTERN_CLEAR_HOUSES[pattern];
+                                // One load serves both purposes: bits 0-80 are the
+                                // keep-mask (AND ignores bits 81+), bits 81-107 are
+                                // the houses of the removed cells.
+                                const clear = BOARD_CLEARS[pattern];
+                                candidates.* &= clear;
+                                affected_houses |= @as(usize, @truncate(clear >> 81));
                             }
                         }
                     }
@@ -414,13 +418,11 @@ pub const Sudoku = struct {
                                     return true; // All digits placed!
                                 }
 
-                                // Propagate and recurse
+                                // Propagate and recurse. A full digit placement
+                                // (3 bands, disjoint columns) covers all 27 houses.
                                 var new_placements: [9]u128 = .{0} ** 9;
                                 new_placements[digit] = candidates.*;
-                                const next_digit = self.propagateConstraints(new_placements,
-                                    constants.PATTERN_HOUSES[0][pattern0] |
-                                        constants.PATTERN_HOUSES[1][pattern1] |
-                                        constants.PATTERN_HOUSES[2][pattern2]);
+                                const next_digit = self.propagateConstraints(new_placements, ALL_27_HOUSES);
 
                                 if (next_digit < INVALID_DIGIT_INDEX and self.searchValidBands(next_digit, patterns_to_reserve)) {
                                     return true;

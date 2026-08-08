@@ -390,6 +390,22 @@ fn update_row_board_clears(
     }
 }
 
+/// Houses containing cells REMOVED by a keep-mask (the complement of the
+/// stored 81-bit cell mask, ~6 cells per board-clear pattern).
+fn houses_of_removed_cells(keep: u128) usize {
+    var houses: usize = 0;
+    var removed = @as(u128, ALL81) ^ keep;
+    while (removed > 0) : (removed &= removed - 1) {
+        // CLEAR_HOUSE_INDEXES is a complement mask; XOR recovers the
+        // positive house mask (row | col << 9 | box << 18)
+        houses |= ALL27 ^ CLEAR_HOUSE_INDEXES[@ctz(removed)];
+    }
+    // fwd = box∩row/col (5 houses: row/col + box + 3 cols/rows),
+    // rev = row/col outside box (9 houses: row/col + 6 cols/rows + 2 boxes)
+    std.debug.assert(@popCount(houses) >= 5 and @popCount(houses) <= 9);
+    return houses;
+}
+
 fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
     @setEvalBranchQuota(1000000);
     var row_lookup: [9][512]u128 = .{.{0} ** 512} ** 9;
@@ -408,8 +424,10 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
             const pattern_a = (ALL81 ^ HOUSE_CELLS[row]) | HOUSE_CELLS[box + 18];
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
             update_row_board_clears(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
-            clear_masks[forward_index] = pattern_b;
-            clear_masks[reverse_index] = pattern_a;
+            // Pack the removed-cells house mask into spare bits 81-107 so the
+            // apply loop derives both the cell mask and the houses from one load.
+            clear_masks[forward_index] = pattern_b | @as(u128, houses_of_removed_cells(pattern_b)) << 81;
+            clear_masks[reverse_index] = pattern_a | @as(u128, houses_of_removed_cells(pattern_a)) << 81;
             forward_index += 1;
             reverse_index += 1;
         }
@@ -419,8 +437,8 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
             const pattern_a = (ALL81 ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
             update_row_board_clears(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
-            clear_masks[forward_index] = pattern_b;
-            clear_masks[reverse_index] = pattern_a;
+            clear_masks[forward_index] = pattern_b | @as(u128, houses_of_removed_cells(pattern_b)) << 81;
+            clear_masks[reverse_index] = pattern_a | @as(u128, houses_of_removed_cells(pattern_a)) << 81;
             forward_index += 1;
             reverse_index += 1;
         }
@@ -497,63 +515,3 @@ fn generate_board_compatible_bands() [162]u192 {
 }
 
 pub const PATTERNS_FOR_SAME_DIGIT = generate_board_compatible_bands();
-
-// =============================================================================
-// PATTERN HOUSE TABLES
-// =============================================================================
-//
-// Support tables for propagateConstraints' affected-house tracking:
-// - PATTERN_HOUSES: houses touched by each band pattern's cells
-// - PATTERN_CLEAR_HOUSES: houses of cells REMOVED by each board-clear pattern
-//
-
-/// PATTERN_HOUSES[band][pattern] = 27-bit mask of the houses touched by the
-/// pattern's 3 cells (3 rows + 3 columns + 3 boxes).
-/// Pattern cells are band-local (0-26); mapped to global row/col/box here.
-fn generate_pattern_houses() [3][162]usize {
-    @setEvalBranchQuota(100000);
-    var table: [3][162]usize = .{.{0} ** 162} ** 3;
-    for (VALID_BAND_CELLS, 0..) |pattern, p| {
-        for (0..3) |band| {
-            var houses: usize = 0;
-            var cells = pattern;
-            while (cells > 0) : (cells &= cells - 1) {
-                const local_cell = @ctz(cells);
-                const row = band * 3 + local_cell / 9;
-                const col = local_cell % 9;
-                const box = (row / 3) * 3 + (col / 3);
-                houses |= BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18;
-            }
-            // A pattern's 3 cells are in 3 distinct rows, columns, and boxes
-            std.debug.assert(@popCount(houses) == 9);
-            table[band][p] = houses;
-        }
-    }
-    return table;
-}
-
-pub const PATTERN_HOUSES = generate_pattern_houses();
-
-/// PATTERN_CLEAR_HOUSES[p] = 27-bit mask of houses containing cells REMOVED
-/// by BOARD_CLEARS[p]. BOARD_CLEARS entries are keep-masks (nearly all bits
-/// set), so the removed cells are the complement (~6 cells per pattern).
-fn generate_pattern_clear_houses() [108]usize {
-    @setEvalBranchQuota(100000);
-    var table: [108]usize = undefined;
-    for (BOARD_CLEARS, 0..) |keep, p| {
-        var houses: usize = 0;
-        var removed = @as(u128, ALL81) ^ keep;
-        while (removed > 0) : (removed &= removed - 1) {
-            // CLEAR_HOUSE_INDEXES is a complement mask; XOR recovers the
-            // positive house mask (row | col << 9 | box << 18)
-            houses |= ALL27 ^ CLEAR_HOUSE_INDEXES[@ctz(removed)];
-        }
-        // Removed cells: fwd = box∩row/col (5 houses: row/col + box + 3 cols/rows),
-        // rev = row/col outside box (9 houses: row/col + 6 cols/rows + 2 boxes)
-        std.debug.assert(@popCount(houses) >= 5 and @popCount(houses) <= 9);
-        table[p] = houses;
-    }
-    return table;
-}
-
-pub const PATTERN_CLEAR_HOUSES = generate_pattern_clear_houses();
