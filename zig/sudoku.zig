@@ -188,7 +188,7 @@ pub const Sudoku = struct {
         // Digits fully placed (removed from pending_digits) never enter the
         // loop below, but their candidates still block other digits.
         var prefix: u128 = 0;
-        var placed_digits = ALL_9_DIGITS & ~self.pending_digits;
+        var placed_digits = ALL_9_DIGITS ^ self.pending_digits;
         while (placed_digits > 0) : (placed_digits = clearLowestBit(placed_digits)) {
             prefix |= self.digit_candidate_cells[@ctz(placed_digits)];
         }
@@ -202,7 +202,7 @@ pub const Sudoku = struct {
                 // ─────────────────────────────────────────────────────────────
                 // Step 1: Compute cells to clear (placed by other digits)
                 // ─────────────────────────────────────────────────────────────
-                const cells_used_by_other_digits = total_new_placements & ~new_placements[digit];
+                const cells_used_by_other_digits = total_new_placements ^ new_placements[digit];
                 const other_digits_candidates = prefix | suffix[digit + 1];
 
                 // ─────────────────────────────────────────────────────────────
