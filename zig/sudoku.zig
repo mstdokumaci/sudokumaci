@@ -169,14 +169,10 @@ pub const Sudoku = struct {
         // candidates, so at digit `i` the other digits' candidate union is
         // exactly (prefix: processed digits, post-mutation) | (suffix[i+1]:
         // unprocessed digits, entry state).
-        var suffix: [10]u128 = undefined;
-        suffix[9] = 0;
-        {
-            var i: usize = 9;
-            while (i > 0) {
-                i -= 1;
-                suffix[i] = suffix[i + 1] | self.digit_candidate_cells[i];
-            }
+        var suffix: [10]u128 = .{0} ** 10;
+        var i: usize = 9;
+        while (i > 0) : (i -= 1) {
+            suffix[i - 1] = suffix[i] | self.digit_candidate_cells[i - 1];
         }
         // Union of all placements this call. Placement cell-sets are disjoint
         // across digits, so another digit's placements are exactly
