@@ -290,14 +290,13 @@ pub const Sudoku = struct {
                             const before = candidates.*;
                             candidates.* &= CLEAR_HOUSES[cell];
                             self.pending_digit_houses[digit] &= CLEAR_HOUSE_INDEXES[cell];
-                            touched_houses |= housesOf(before ^ candidates.*);
+                            remaining_houses |= housesOf(before ^ candidates.*);
                             discovered_placements[digit] |= candidates_in_house;
                             found_new_placements = true;
                         }
-                        // Re-derive the scan set from live state: a placement may
-                        // have satisfied some houses (they drop out of the pending
-                        // set, skipping redundant re-visits); the current house
-                        // is consumed.
+                        // Re-derive the scan set from live state: satisfied houses
+                        // drop out (pending set), the current house is consumed,
+                        // and newly touched houses re-enter.
                         remaining_houses = self.pending_digit_houses[digit] & (remaining_houses ^ (@as(usize, 1) << @intCast(house)));
                     }
                 }
