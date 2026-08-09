@@ -226,9 +226,8 @@ pub const Sudoku = struct {
                 if (pruned_candidates != candidates.*) {
                     candidates.* = pruned_candidates;
 
-                    // Houses touched by cells removed from this digit's candidates
-                    // in this prune step; the only houses whose counts can change.
-                    var touched_houses = housesOf(candidates.* ^ pruned_candidates);
+                    // Houses touched by this prune step are NOT scanned
+                    var touched_houses: usize = 0;
 
                     // ─────────────────────────────────────────────────────────
                     // Step 3: Find hidden singles
