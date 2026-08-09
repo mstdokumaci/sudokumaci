@@ -257,20 +257,25 @@ fn generate_clear_houses() [81]u81 {
 
 pub const CLEAR_HOUSES = generate_clear_houses();
 
-/// CLEAR_HOUSE_INDEXES[cell] = mask to mark houses as "satisfied" when placing at cell
-/// Returns complement of the 3 house bits (row, column, box) that this cell belongs to
-fn generate_clear_house_indexes() [81]usize {
-    var masks: [81]usize = undefined;
+/// HOUSE_INDEXES[cell] = mask of the 3 houses (row, column, box) containing this cell.
+/// CLEAR_HOUSE_INDEXES[cell] = complement: masks the houses to mark satisfied when
+/// a digit is placed at this cell.
+fn generate_house_indexes() struct { [81]usize, [81]usize } {
+    var house_indexes: [81]usize = undefined;
+    var clear_house_indexes: [81]usize = undefined;
     for (0..81) |cell| {
         const row = cell / 9;
         const col = cell % 9;
         const box = (row / 3) * 3 + (col / 3);
-        masks[cell] = (BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18) ^ ALL27;
+        house_indexes[cell] = BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18;
+        clear_house_indexes[cell] = ALL27 ^ house_indexes[cell];
     }
-    return masks;
+    return .{ house_indexes, clear_house_indexes };
 }
 
-pub const CLEAR_HOUSE_INDEXES = generate_clear_house_indexes();
+const HOUSE_INDEX_TABLES = generate_house_indexes();
+pub const HOUSE_INDEXES = HOUSE_INDEX_TABLES[0];
+pub const CLEAR_HOUSE_INDEXES = HOUSE_INDEX_TABLES[1];
 
 // =============================================================================
 // BAND PATTERNS
@@ -396,9 +401,7 @@ fn houses_of_removed_cells(keep: u128) usize {
     var houses: usize = 0;
     var removed = @as(u128, ALL81) ^ keep;
     while (removed > 0) : (removed &= removed - 1) {
-        // CLEAR_HOUSE_INDEXES is a complement mask; XOR recovers the
-        // positive house mask (row | col << 9 | box << 18)
-        houses |= ALL27 ^ CLEAR_HOUSE_INDEXES[@ctz(removed)];
+        houses |= HOUSE_INDEXES[@ctz(removed)];
     }
     // fwd = box∩row/col (5 houses: row/col + box + 3 cols/rows),
     // rev = row/col outside box (9 houses: row/col + 6 cols/rows + 2 boxes)

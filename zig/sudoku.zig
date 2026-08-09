@@ -20,6 +20,7 @@ const BIT81 = constants.BIT81; // BIT81[i] = 1 << i for i in 0..80
 // House (row/column/box) related tables
 const HOUSE_CELLS = constants.HOUSE_CELLS; // Cells belonging to each house
 const CLEAR_HOUSES = constants.CLEAR_HOUSES; // Mask to clear all peer cells
+const HOUSE_INDEXES = constants.HOUSE_INDEXES; // Houses containing each cell
 const CLEAR_HOUSE_INDEXES = constants.CLEAR_HOUSE_INDEXES; // Mask to clear house indexes
 
 // Band pattern tables
@@ -82,13 +83,11 @@ inline fn clearLowestBit(x: anytype) @TypeOf(x) {
 }
 
 /// Returns the bitmask of houses (rows/cols/boxes) containing any set cell.
-/// `CLEAR_HOUSE_INDEXES` is a complement mask; XOR recovers the positive
-/// house mask (row | col << 9 | box << 18).
 inline fn housesOf(cells: u128) usize {
     var houses: usize = 0;
     var remaining = cells;
     while (remaining > 0) : (remaining = clearLowestBit(remaining)) {
-        houses |= ALL_27_HOUSES ^ CLEAR_HOUSE_INDEXES[@ctz(remaining)];
+        houses |= HOUSE_INDEXES[@ctz(remaining)];
     }
     return houses;
 }
@@ -158,13 +157,12 @@ pub const Sudoku = struct {
     // =========================================================================
 
     /// Propagates constraints from new placements, applying:
-    /// 1. Naked singles (cells with only one candidate)
-    /// 2. Hidden singles (digits with only one location in a house)
-    /// 3. Box-line reduction (when a digit is confined to one row/col within a box)
+    /// 1. Hidden singles (digits with only one location in a house)
+    /// 2. Box-line reduction (when a digit is confined to one row/col within a box)
+    /// 3. Naked singles (cells with only one candidate)
     ///
-    /// House-level (naked) single detection scans only the houses touched by
-    /// cells removed from a digit's candidates in the current prune step, so
-    /// the scan set is exact rather than an accumulated union.
+    /// Naked singles are searched only in houses whose candidate counts changed
+    /// during this prune step.
     ///
     /// Returns the index of the most constrained digit for search, or INVALID_DIGIT_INDEX if invalid.
     fn propagateConstraints(self: *Sudoku, new_placements: [9]u128) usize {
@@ -192,13 +190,18 @@ pub const Sudoku = struct {
             suffix[i - 1] = suffix[i] | self.digit_candidate_cells[i - 1];
         }
 
-        // Union of all placements this call. Placement cell-sets are disjoint
-        // across digits, so another digit's placements are exactly
-        // total & ~new_placements[digit].
+        // Union of all placements this call.
         var total_new_placements: u128 = 0;
         for (new_placements) |placements| {
             total_new_placements |= placements;
         }
+
+        // Cells not claimed by any placement this call. A digit keeps every
+        // candidate except cells newly placed by other digits; its own
+        // placements stay candidates: unoccupied_cells | new_placements[digit]
+        // (≡ ~(total_new_placements ^ new_placements[digit]), since each
+        // digit's placements are part of the union).
+        const unoccupied_cells = ~total_new_placements;
 
         // Process each pending digit
         var remaining_digits = self.pending_digits;
@@ -207,15 +210,10 @@ pub const Sudoku = struct {
 
             if (self.pending_digit_houses[digit] > 0) {
                 // ─────────────────────────────────────────────────────────────
-                // Step 1: Compute cells to clear (placed by other digits)
-                // ─────────────────────────────────────────────────────────────
-                const cells_used_by_other_digits = total_new_placements ^ new_placements[digit];
-
-                // ─────────────────────────────────────────────────────────────
-                // Step 2: Apply constraints and check validity
+                // Step 1: Prune candidates of cells placed by other digits
                 // ─────────────────────────────────────────────────────────────
                 const candidates = &self.digit_candidate_cells[digit];
-                const pruned_candidates = candidates.* & ~cells_used_by_other_digits;
+                const pruned_candidates = candidates.* & (unoccupied_cells | new_placements[digit]);
                 const candidate_count = @popCount(pruned_candidates);
 
                 // A digit must have at least 9 candidate cells (one per house)
@@ -226,11 +224,12 @@ pub const Sudoku = struct {
                 if (pruned_candidates != candidates.*) {
                     candidates.* = pruned_candidates;
 
-                    // Houses touched by this prune step are NOT scanned
+                    // Houses whose candidate counts change below are the only
+                    // ones that can gain a naked single or lose all candidates.
                     var touched_houses: usize = 0;
 
                     // ─────────────────────────────────────────────────────────
-                    // Step 3: Find hidden singles
+                    // Step 2: Find hidden singles
                     // Cells that are candidates for this digit but no other digit
                     // ─────────────────────────────────────────────────────────
                     var unique_cells = candidates.* & ~(prefix | suffix[digit + 1]);
@@ -249,12 +248,10 @@ pub const Sudoku = struct {
                     }
 
                     // ─────────────────────────────────────────────────────────
-                    // Step 4: Box-line reduction (only when candidates are sparse)
+                    // Step 3: Box-line reduction (only when candidates are sparse)
                     // ─────────────────────────────────────────────────────────
                     if (candidate_count < 40) {
-                        var reduction_found = true;
-                        while (reduction_found) {
-                            reduction_found = false;
+                        while (true) {
                             // Find patterns that match the current candidate configuration
                             var matching_patterns = getMatchingBoardClears(candidates.*);
                             // Remove patterns that cancel out (pattern + reverse both match)
@@ -263,7 +260,7 @@ pub const Sudoku = struct {
                             const non_canceling = forward_patterns ^ reverse_patterns;
                             matching_patterns &= (non_canceling << 54) | non_canceling;
 
-                            reduction_found = matching_patterns > 0;
+                            if (matching_patterns == 0) break;
                             while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
                                 const pattern = @ctz(matching_patterns);
                                 // One load serves both purposes: bits 0-80 are the
@@ -277,10 +274,7 @@ pub const Sudoku = struct {
                     }
 
                     // ─────────────────────────────────────────────────────────
-                    // Step 5: Find naked singles in houses touched by removals
-                    // Only houses touched by cells removed from this digit's
-                    // candidates can have changed counts, so they are the only
-                    // houses that can gain a naked single or lose all candidates.
+                    // Step 4: Find naked singles in the touched houses
                     // ─────────────────────────────────────────────────────────
                     var remaining_houses = self.pending_digit_houses[digit] & touched_houses;
                     while (remaining_houses > 0) {
@@ -300,11 +294,11 @@ pub const Sudoku = struct {
                             discovered_placements[digit] |= candidates_in_house;
                             found_new_placements = true;
                         }
-                        // Re-derive from live state: placement houses left pending
-                        // (skipping their no-op re-visits) and the lowest unvisited
-                        // house is dropped.
-                        const lowbit = remaining_houses & ~(remaining_houses - 1);
-                        remaining_houses = self.pending_digit_houses[digit] & touched_houses & ~((lowbit << 1) - 1);
+                        // Re-derive the scan set from live state: a placement may
+                        // have satisfied some houses (they drop out of the pending
+                        // set, skipping redundant re-visits); the current house
+                        // is consumed.
+                        remaining_houses = self.pending_digit_houses[digit] & (remaining_houses ^ (@as(usize, 1) << @intCast(house)));
                     }
                 }
 
@@ -314,12 +308,13 @@ pub const Sudoku = struct {
                     most_constrained_digit = digit;
                 }
             } else {
-                // Digit is fully placed - prioritize it for finalization
+                // Digit already fully placed - finalize it next
                 min_candidates = 9;
                 most_constrained_digit = digit;
             }
 
-            // Post-mutation candidate state for subsequent digits' union
+            // Include this digit's final candidates so later digits see its
+            // post-mutation state
             prefix |= self.digit_candidate_cells[digit];
         }
 
