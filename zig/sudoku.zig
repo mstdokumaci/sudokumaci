@@ -214,7 +214,7 @@ pub const Sudoku = struct {
                 // ─────────────────────────────────────────────────────────────
                 const candidates = &self.digit_candidate_cells[digit];
                 const pruned_candidates = candidates.* & (unoccupied_cells | new_placements[digit]);
-                const candidate_count = @popCount(pruned_candidates);
+                var candidate_count = @popCount(pruned_candidates);
 
                 // A digit must have at least 9 candidate cells (one per house)
                 if (candidate_count < 9) {
@@ -302,6 +302,7 @@ pub const Sudoku = struct {
                 }
 
                 // Track most constrained digit for search phase
+                candidate_count = @popCount(pruned_candidates);
                 if (candidate_count < min_candidates) {
                     min_candidates = candidate_count;
                     most_constrained_digit = digit;
