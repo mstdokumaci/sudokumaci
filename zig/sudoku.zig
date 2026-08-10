@@ -214,7 +214,7 @@ pub const Sudoku = struct {
                 // ─────────────────────────────────────────────────────────────
                 const candidates = &self.digit_candidate_cells[digit];
                 const pruned_candidates = candidates.* & (unoccupied_cells | new_placements[digit]);
-                var candidate_count = @popCount(pruned_candidates);
+                const candidate_count = @popCount(pruned_candidates);
 
                 // A digit must have at least 9 candidate cells (one per house)
                 if (candidate_count < 9) {
@@ -287,22 +287,18 @@ pub const Sudoku = struct {
                         } else if (count_in_house == 1) {
                             // Naked single - only one cell possible in this house
                             const cell = @ctz(candidates_in_house);
-                            const before = candidates.*;
                             candidates.* &= CLEAR_HOUSES[cell];
                             self.pending_digit_houses[digit] &= CLEAR_HOUSE_INDEXES[cell];
-                            remaining_houses |= housesOf(before ^ candidates.*);
                             discovered_placements[digit] |= candidates_in_house;
                             found_new_placements = true;
                         }
                         // Re-derive the scan set from live state: satisfied houses
-                        // drop out (pending set), the current house is consumed,
-                        // and newly touched houses re-enter.
+                        // drop out (pending set), the current house is consumed.
                         remaining_houses = self.pending_digit_houses[digit] & (remaining_houses ^ (@as(usize, 1) << @intCast(house)));
                     }
                 }
 
                 // Track most constrained digit for search phase
-                candidate_count = @popCount(pruned_candidates);
                 if (candidate_count < min_candidates) {
                     min_candidates = candidate_count;
                     most_constrained_digit = digit;
