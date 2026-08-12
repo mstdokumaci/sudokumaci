@@ -35,7 +35,7 @@ jobs:
       - name: Build tdoku
         run: |
           git clone --depth 1 https://github.com/t-dillon/tdoku tdoku
-          cd tdoku && ./BUILD.sh -DARCH=haswell
+          cd tdoku && ./BUILD.sh -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DARCH=haswell
 
       - name: Run benchmark
         run: bash .github/scripts/benchmark.sh
