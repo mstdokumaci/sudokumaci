@@ -29,7 +29,7 @@ main_pps() { sed -n 's/.*puzzles\/sec: \([0-9][0-9.]*\).*/\1/p'; }
 min_float() { awk 'NR==1{min=$1} $1<min{min=$1} END{print min}'; }
 
 # tdoku CSV: compiler,version,flags,file,solver,puzzles/sec,usec,pct_no_guess,guesses
-tdoku_pps() { tail -1 | awk -F',' '{print $6}'; }
+tdoku_pps() { awk -F',' 'NF>=6 && $6 ~ /^[0-9.]+$/ {v=$6} END {print v}'; }
 
 validate() { # $1 = puzzle,solution file
     python3 - "$1" <<'PY'
@@ -69,9 +69,19 @@ run_main() { # extra args appended after --bench
 }
 
 run_tdoku() {
-    local min_pps="" pps i
+    local min_pps="" pps i rc out
     for i in $(seq 1 "$TDOKU_RUNS"); do
-        pps=$("$TDOKU_BENCH" -s tdoku -r 0 -n "$puzzle_count" -v 1 -c 1 -w 2 -t 5 "$f" 2>/dev/null | tdoku_pps)
+        out=$(mktemp)
+        rc=0
+        "$TDOKU_BENCH" -s tdoku -r 0 -n "$puzzle_count" -v 1 -c 1 -w 2 -t 5 "$f" >"$out" 2>&1 || rc=$?
+        pps=$(tdoku_pps <"$out")
+        if [[ -z "$pps" ]]; then
+            echo "tdoku run $i failed (exit $rc):" >&2
+            tail -15 "$out" >&2
+            rm -f "$out"
+            exit 1
+        fi
+        rm -f "$out"
         min_pps=$(printf '%s\n%s\n' "${min_pps:-$pps}" "$pps" | min_float)
     done
     printf '%s' "$min_pps"
