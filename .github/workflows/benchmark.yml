@@ -30,7 +30,7 @@ jobs:
           version: 0.15.2
 
       - name: Build sudokumaci
-        run: zig build-exe -O ReleaseFast -mcpu=native main.zig
+        run: zig build-exe -O ReleaseFast -mcpu=native -lc main.zig
 
       - name: Build tdoku
         run: |

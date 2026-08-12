@@ -230,7 +230,8 @@ On modern hardware, solving ~49,000 17-clue puzzles:
 
 ### Build
 ```bash
-zig build-exe -O ReleaseFast -mcpu=native main.zig
+# -lc required on Linux (std.heap.c_allocator); harmless on macOS
+zig build-exe -O ReleaseFast -mcpu=native -lc main.zig
 ```
 
 ### Usage
