@@ -262,11 +262,10 @@ pub const Sudoku = struct {
 
                             if (matching_patterns == 0) break;
                             while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
-                                const pattern = @ctz(matching_patterns);
                                 // One load serves both purposes: bits 0-80 are the
                                 // keep-mask (AND ignores bits 81+), bits 81-107 are
                                 // the houses of the removed cells.
-                                const clear = BOARD_CLEARS[pattern];
+                                const clear = BOARD_CLEARS[@ctz(matching_patterns)];
                                 candidates.* &= clear;
                                 touched_houses |= @as(usize, @truncate(clear >> 81));
                             }
