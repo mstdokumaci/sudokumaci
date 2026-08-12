@@ -32,10 +32,10 @@ jobs:
       - name: Build sudokumaci
         run: zig build-exe -O ReleaseFast -mcpu=native -lc main.zig
 
-      - name: Build tdoku
+      - name: Build tdoku (gcc 9.4 in ubuntu:20.04 container)
         run: |
           git clone --depth 1 https://github.com/t-dillon/tdoku tdoku
-          cd tdoku && ./BUILD.sh -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DARCH=haswell
+          docker run --rm -v "$PWD/tdoku:/tdoku" -w /tdoku ubuntu:20.04 bash -c "apt-get update -qq && apt-get install -y -qq build-essential cmake && ./BUILD.sh -DARCH=haswell"
 
       - name: Run benchmark
         run: bash .github/scripts/benchmark.sh

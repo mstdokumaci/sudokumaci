@@ -3,3 +3,4 @@
 main
 main.o
 bench-results/
+tdoku/
