@@ -3,6 +3,7 @@ name: benchmark
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - main.zig
       - sudoku.zig
@@ -26,7 +27,7 @@ jobs:
       - name: Install Zig 0.15.2
         uses: mlugg/setup-zig@v2
         with:
-          zig-version: 0.15.2
+          version: 0.15.2
 
       - name: Build sudokumaci
         run: zig build-exe -O ReleaseFast -mcpu=native main.zig

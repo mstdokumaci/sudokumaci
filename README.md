@@ -226,7 +226,7 @@ On modern hardware, solving ~49,000 17-clue puzzles:
 ## Build & Run
 
 ### Requirements
-- Zig 0.15.0 or newer
+- Zig 0.15.x
 
 ### Build
 ```bash
