@@ -37,6 +37,54 @@ jobs:
           git clone --depth 1 https://github.com/t-dillon/tdoku tdoku
           docker run --rm -e DEBIAN_FRONTEND=noninteractive -v "$PWD/tdoku:/tdoku" -w /tdoku ubuntu:20.04 bash -c "apt-get update -qq && apt-get install -y -qq build-essential cmake && ./BUILD.sh -DARCH=haswell"
 
+      - name: Diagnostic: tdoku own tests + full-coverage solve
+        run: |
+          cd tdoku
+          ./build/run_tests > /tmp/run_tests.log 2>&1 && echo "RUN_TESTS: PASS" || { echo "RUN_TESTS: FAIL (exit $?)"; tail -20 /tmp/run_tests.log; }
+          gcc example/solve.c build/libtdoku_static.a -O3 -o solve -lstdc++ -lm
+          cd ..
+          ./tdoku/solve < test-data/all_17_clue.sudokus > /tmp/solve_all.txt || echo "SOLVE CRASHED (exit $?)"
+          python3 - <<'PY'
+          import sys
+          bad = n = 0
+          unsolved = []
+          for line in open('/tmp/solve_all.txt'):
+              parts = line.strip().split(':')
+              if len(parts) < 3:
+                  continue
+              n += 1
+              p, c, s = parts[0], parts[1], parts[2]
+              if c == '0':
+                  bad += 1
+                  if len(unsolved) < 10:
+                      unsolved.append(p)
+                  continue
+              if len(s) != 81 or any(ch not in '123456789' for ch in s):
+                  bad += 1
+                  if len(unsolved) < 10:
+                      unsolved.append(p + ' (bad solution)')
+                  continue
+              rows = all(len({s[r * 9 + col] for col in range(9)}) == 9 for r in range(9))
+              cols = all(len({s[r * 9 + col] for r in range(9)}) == 9 for col in range(9))
+              boxes = all(len({s[(b // 3) * 27 + (b % 3) * 3 + r * 9 + c] for r in range(3) for c in range(3)}) == 9 for b in range(9))
+              if not (rows and cols and boxes):
+                  bad += 1
+                  if len(unsolved) < 10:
+                      unsolved.append(p + ' (invalid solution)')
+          print(f"checked {n} puzzles, {bad} failing")
+          for p in unsolved:
+              print("FAILING:", p)
+          PY
+
+      - name: Diagnostic: tdoku SSE2-capped build + full-coverage solve
+        run: |
+          cd tdoku && ./BUILD.sh -DSSE2=on
+          gcc example/solve.c build/libtdoku_static.a -O3 -o solve_sse2 -lstdc++ -lm
+          cd ..
+          ./tdoku/solve_sse2 < test-data/all_17_clue.sudokus > /tmp/solve_sse2.txt || echo "SOLVE_SSE2 CRASHED (exit $?)"
+          unsolved=$(grep -c ':0:' /tmp/solve_sse2.txt || true)
+          echo "SSE2 unsolved: $unsolved, total lines: $(wc -l < /tmp/solve_sse2.txt)"
+
       - name: Run benchmark
         run: bash .github/scripts/benchmark.sh
         env:
