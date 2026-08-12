@@ -1,0 +1,49 @@
+name: benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - main.zig
+      - sudoku.zig
+      - constants.zig
+      - test-data/*.sudokus
+      - .github/**
+  pull_request:
+    paths:
+      - main.zig
+      - sudoku.zig
+      - constants.zig
+      - test-data/*.sudokus
+      - .github/**
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig 0.15.2
+        uses: mlugg/setup-zig@v2
+        with:
+          zig-version: 0.15.2
+
+      - name: Build sudokumaci
+        run: zig build-exe -O ReleaseFast -mcpu=native main.zig
+
+      - name: Build tdoku
+        run: |
+          git clone --depth 1 https://github.com/t-dillon/tdoku tdoku
+          ./tdoku/BUILD.sh
+
+      - name: Run benchmark
+        run: bash .github/scripts/benchmark.sh
+        env:
+          MAIN_BIN: ./main
+          TDOKU_BENCH: ./tdoku/build/run_benchmark
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench-results/

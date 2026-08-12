@@ -16,6 +16,9 @@ const OUTPUT_RECORD_SIZE: usize = 164;
 /// Size of a puzzle string (81 cells)
 const PUZZLE_SIZE: usize = 81;
 
+/// Maximum number of worker threads
+const MAX_THREADS: usize = 100;
+
 // =============================================================================
 // SHARED STATE
 // =============================================================================
@@ -58,6 +61,23 @@ fn solveWorker(initial_batch: usize, batch_size: usize, puzzle_count: usize, out
     }
 }
 
+/// Runs one full solve pass over all puzzles (spawn workers, wait for completion).
+fn solveAll(thread_count: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
+    var threads: [MAX_THREADS]std.Thread = undefined;
+
+    // Initialize shared counter: first N batches are pre-assigned to threads
+    next_batch_index = thread_count;
+
+    for (0..thread_count) |thread_index| {
+        const initial_batch = thread_index * batch_size;
+        threads[thread_index] = try std.Thread.spawn(.{}, solveWorker, .{ initial_batch, batch_size, puzzle_count, output });
+    }
+
+    for (0..thread_count) |thread_index| {
+        threads[thread_index].join();
+    }
+}
+
 // =============================================================================
 // MAIN ENTRY POINT
 // =============================================================================
@@ -69,16 +89,31 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(std.heap.c_allocator);
     defer std.process.argsFree(std.heap.c_allocator, args);
 
-    if (args.len != 2) {
-        std.debug.print("Usage: sudokumaci <filename>\n", .{});
+    var filename: ?[]const u8 = null;
+    var thread_override: ?usize = null;
+    var bench = false;
+
+    var arg_index: usize = 1;
+    while (arg_index < args.len) : (arg_index += 1) {
+        if (std.mem.eql(u8, args[arg_index], "-j") and arg_index + 1 < args.len) {
+            arg_index += 1;
+            thread_override = try std.fmt.parseInt(usize, args[arg_index], 10);
+        } else if (std.mem.eql(u8, args[arg_index], "--bench")) {
+            bench = true;
+        } else {
+            filename = args[arg_index];
+        }
+    }
+
+    if (filename == null) {
+        std.debug.print("Usage: sudokumaci [-j N] [--bench] <filename>\n", .{});
         return;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Read input file
     // ─────────────────────────────────────────────────────────────────────────
-    const filename = args[1];
-    const file = try std.fs.cwd().openFile(filename, .{});
+    const file = try std.fs.cwd().openFile(filename.?, .{});
     defer file.close();
 
     const file_contents = try file.readToEndAlloc(std.heap.c_allocator, std.math.maxInt(usize));
@@ -100,25 +135,22 @@ pub fn main() !void {
     // ─────────────────────────────────────────────────────────────────────────
     // Launch worker threads
     // ─────────────────────────────────────────────────────────────────────────
-    const thread_count = try std.Thread.getCpuCount();
+    const thread_count = @min(thread_override orelse try std.Thread.getCpuCount(), MAX_THREADS);
     const batch_size: usize = @min(puzzle_count / thread_count + 1, BATCH_SIZE_LIMIT);
 
-    // Initialize shared counter: first N batches are pre-assigned to threads
-    next_batch_index = thread_count;
-
-    var threads: [100]std.Thread = undefined;
-    for (0..thread_count) |thread_index| {
-        const initial_batch = thread_index * batch_size;
-        threads[thread_index] = try std.Thread.spawn(.{}, solveWorker, .{ initial_batch, batch_size, puzzle_count, output });
+    if (bench) {
+        // Match tdoku's methodology: an untimed warmup pass (caches, branch
+        // predictor, page faults), then a timed pass over the same puzzles.
+        try solveAll(thread_count, batch_size, puzzle_count, output);
+        var timer = try std.time.Timer.start();
+        try solveAll(thread_count, batch_size, puzzle_count, output);
+        const elapsed_ns = timer.read();
+        const usec_per_puzzle = @as(f64, @floatFromInt(elapsed_ns)) / @as(f64, @floatFromInt(puzzle_count)) / 1000.0;
+        const puzzles_per_sec = @as(f64, @floatFromInt(puzzle_count)) * 1_000_000_000.0 / @as(f64, @floatFromInt(elapsed_ns));
+        std.debug.print("puzzles: {d} wall_us: {d} usec/puzzle: {d:.2} puzzles/sec: {d:.0}\n", .{ puzzle_count, elapsed_ns / 1000, usec_per_puzzle, puzzles_per_sec });
+    } else {
+        try solveAll(thread_count, batch_size, puzzle_count, output);
+        // Write all results to stdout (excluding final newline)
+        try std.fs.File.stdout().writeAll(output[0 .. puzzle_count * OUTPUT_RECORD_SIZE - 1]);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Wait for completion and output results
-    // ─────────────────────────────────────────────────────────────────────────
-    for (0..thread_count) |thread_index| {
-        threads[thread_index].join();
-    }
-
-    // Write all results to stdout (excluding final newline)
-    try std.fs.File.stdout().writeAll(output[0 .. puzzle_count * OUTPUT_RECORD_SIZE - 1]);
 }

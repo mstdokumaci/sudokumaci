@@ -238,8 +238,26 @@ zig build-exe -O ReleaseFast -mcpu=native main.zig
 # Solve puzzles from file (one 81-char puzzle per line, '0' for empty cells)
 ./main puzzles.txt > solutions.txt
 
+# Limit worker threads (default: one per CPU)
+./main -j 1 puzzles.txt
+
+# Benchmark mode: one untimed warmup pass, then a timed pass; prints puzzles/sec to stderr
+./main --bench [-j N] puzzles.txt
+
 # Benchmark
 time ./main test-data/all_17_clue.sudokus > test-data/all_17_clue.solved
+```
+
+### Benchmark vs tdoku
+
+GitHub Actions runs this automatically on pushes/PRs touching solver code (see `.github/workflows/benchmark.yml`). To run locally against [tdoku](https://github.com/t-dillon/tdoku):
+
+```bash
+# build tdoku once
+git clone --depth 1 https://github.com/t-dillon/tdoku && (cd tdoku && ./BUILD.sh)
+
+# run the comparison (results in bench-results/results.md)
+TDOKU_BENCH=/path/to/tdoku/build/run_benchmark bash .github/scripts/benchmark.sh
 ```
 
 ### Input Format
