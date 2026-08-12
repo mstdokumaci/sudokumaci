@@ -249,15 +249,20 @@ zig build-exe -O ReleaseFast -mcpu=native -lc main.zig
 time ./main test-data/all_17_clue.sudokus > test-data/all_17_clue.solved
 ```
 
-### Benchmark vs tdoku
+### Benchmark
 
-GitHub Actions runs this automatically on pushes/PRs touching solver code (see `.github/workflows/benchmark.yml`). To run locally against [tdoku](https://github.com/t-dillon/tdoku):
+GitHub Actions runs this automatically on pushes/PRs touching solver code (see `.github/workflows/benchmark.yml`):
+
+- `benchmark-macos` (macos-15-intel): sudokumaci vs [tdoku](https://github.com/t-dillon/tdoku). tdoku is x86-only, and its Linux builds return wrong solutions on some puzzles (upstream bug), so it only runs on Intel macOS where it is correct.
+- `benchmark-linux-arm` (ubuntu-24.04-arm): sudokumaci-only on ARM64.
+
+To run locally (results in `bench-results/results.md`):
 
 ```bash
-# build tdoku once
-git clone --depth 1 https://github.com/t-dillon/tdoku && (cd tdoku && ./BUILD.sh)
+# sudokumaci only
+bash .github/scripts/benchmark.sh
 
-# run the comparison (results in bench-results/results.md)
+# sudokumaci vs tdoku (build tdoku once: git clone https://github.com/t-dillon/tdoku && cd tdoku && ./BUILD.sh)
 TDOKU_BENCH=/path/to/tdoku/build/run_benchmark bash .github/scripts/benchmark.sh
 ```
 

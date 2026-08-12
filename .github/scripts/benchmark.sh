@@ -4,7 +4,7 @@
 set -euo pipefail
 
 MAIN_BIN="${MAIN_BIN:-./main}"
-TDOKU_BENCH="${TDOKU_BENCH:-tdoku/build/run_benchmark}"
+TDOKU_BENCH="${TDOKU_BENCH:-}"
 SUDOKU_RUNS="${SUDOKU_RUNS:-5}"
 TDOKU_RUNS="${TDOKU_RUNS:-3}"
 OUT_DIR="${OUT_DIR:-bench-results}"
@@ -12,9 +12,14 @@ OUT_DIR="${OUT_DIR:-bench-results}"
 mkdir -p "$OUT_DIR"
 SUMMARY="$OUT_DIR/results.md"
 
-for bin in "$MAIN_BIN" "$TDOKU_BENCH"; do
-    [[ -x "$bin" ]] || { echo "error: $bin not executable (set MAIN_BIN/TDOKU_BENCH)" >&2; exit 1; }
-done
+[[ -x "$MAIN_BIN" ]] || { echo "error: $MAIN_BIN not executable (set MAIN_BIN)" >&2; exit 1; }
+
+# tdoku comparison is optional: only when TDOKU_BENCH points to an executable
+# (its Linux builds are broken upstream, so it runs on Intel macOS only).
+HAVE_TDOKU=0
+if [[ -n "$TDOKU_BENCH" && -x "$TDOKU_BENCH" ]]; then
+    HAVE_TDOKU=1
+fi
 
 DATASETS=(all_17_clue.sudokus serg_benchmark.sudokus forum_hardest_1106.sudokus)
 DATA_DIR="test-data"
@@ -90,15 +95,25 @@ run_tdoku() {
 fmt() { awk -v x="$1" 'BEGIN{printf "%.0f", x}'; }
 
 {
+if [[ $HAVE_TDOKU -eq 1 ]]; then
     echo "# Benchmark: sudokumaci vs tdoku"
-    echo
-    echo "Runner: $(uname -sm)"
-    echo
+else
+    echo "# Benchmark: sudokumaci"
+fi
+echo
+echo "Runner: $(uname -sm)"
+echo
+if [[ $HAVE_TDOKU -eq 1 ]]; then
     echo "| dataset | solver | config | puzzles/sec | ratio vs tdoku |"
     echo "|---|---|---|---|---|"
-    for ds in "${DATASETS[@]}"; do
-        f="$DATA_DIR/$ds"
-        puzzle_count=$(wc -l < "$f")
+else
+    echo "| dataset | solver | config | puzzles/sec |"
+    echo "|---|---|---|---|"
+fi
+for ds in "${DATASETS[@]}"; do
+    f="$DATA_DIR/$ds"
+    puzzle_count=$(wc -l < "$f")
+    if [[ $HAVE_TDOKU -eq 1 ]]; then
         tdoku_pps=$(run_tdoku)
         j1_pps=$(run_main -j 1)
         def_pps=$(run_main)
@@ -106,10 +121,16 @@ fmt() { awk -v x="$1" 'BEGIN{printf "%.0f", x}'; }
         echo "| $ds | tdoku | 1 thread | $(fmt "$tdoku_pps") | - |"
         echo "| $ds | sudokumaci | -j 1 | $(fmt "$j1_pps") | ${ratio}x |"
         echo "| $ds | sudokumaci | default threads | $(fmt "$def_pps") | - |"
+    else
+        j1_pps=$(run_main -j 1)
+        def_pps=$(run_main)
+        echo "| $ds | sudokumaci | -j 1 | $(fmt "$j1_pps") |"
+        echo "| $ds | sudokumaci | default threads | $(fmt "$def_pps") |"
+    fi
 
-        "$MAIN_BIN" "$f" > "$OUT_DIR/$ds.solved"
-        validate "$OUT_DIR/$ds.solved"
-    done
+    "$MAIN_BIN" "$f" > "$OUT_DIR/$ds.solved"
+    validate "$OUT_DIR/$ds.solved"
+done
 } | tee "$SUMMARY"
 
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
