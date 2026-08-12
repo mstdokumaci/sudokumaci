@@ -37,7 +37,7 @@ jobs:
           git clone --depth 1 https://github.com/t-dillon/tdoku tdoku
           docker run --rm -e DEBIAN_FRONTEND=noninteractive -v "$PWD/tdoku:/tdoku" -w /tdoku ubuntu:20.04 bash -c "apt-get update -qq && apt-get install -y -qq build-essential cmake && ./BUILD.sh -DARCH=haswell"
 
-      - name: Diagnostic: tdoku own tests + full-coverage solve
+      - name: "Diagnostic: tdoku own tests + full-coverage solve"
         run: |
           cd tdoku
           ./build/run_tests > /tmp/run_tests.log 2>&1 && echo "RUN_TESTS: PASS" || { echo "RUN_TESTS: FAIL (exit $?)"; tail -20 /tmp/run_tests.log; }
@@ -76,7 +76,7 @@ jobs:
               print("FAILING:", p)
           PY
 
-      - name: Diagnostic: tdoku SSE2-capped build + full-coverage solve
+      - name: "Diagnostic: tdoku SSE2-capped build" + full-coverage solve
         run: |
           cd tdoku && ./BUILD.sh -DSSE2=on
           gcc example/solve.c build/libtdoku_static.a -O3 -o solve_sse2 -lstdc++ -lm
