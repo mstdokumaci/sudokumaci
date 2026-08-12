@@ -94,6 +94,21 @@ run_tdoku() {
 
 fmt() { awk -v x="$1" 'BEGIN{printf "%.0f", x}'; }
 
+cpu_info() {
+    if [[ "$(uname -s)" == "Linux" ]]; then
+        local model online affinity quota cpuset
+        model=$(lscpu 2>/dev/null | grep -m1 "Model name" | sed 's/.*: *//')
+        [[ -z "$model" ]] && model=$(grep -m1 "model name" /proc/cpuinfo | sed 's/.*: *//')
+        online=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo "?")
+        affinity=$(grep -m1 Cpus_allowed_list /proc/self/status 2>/dev/null | awk '{print $2}')
+        quota=$(cat /sys/fs/cgroup/cpu.max 2>/dev/null || echo "n/a")
+        cpuset=$(cat /sys/fs/cgroup/cpuset.cpus.effective 2>/dev/null || echo "n/a")
+        echo "${model:-unknown} | online=$online affinity=$affinity cgroup_cpu.max=$quota cpuset=$cpuset"
+    else
+        echo "$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo unknown) | $(sysctl -n hw.logicalcpu 2>/dev/null || echo "?") logical cpus"
+    fi
+}
+
 {
 if [[ $HAVE_TDOKU -eq 1 ]]; then
     echo "# Benchmark: sudokumaci vs tdoku"
@@ -101,7 +116,7 @@ else
     echo "# Benchmark: sudokumaci"
 fi
 echo
-echo "Runner: $(uname -sm)"
+echo "Runner: $(uname -sm) | $(cpu_info)"
 echo
 if [[ $HAVE_TDOKU -eq 1 ]]; then
     echo "| dataset | solver | config | puzzles/sec | ratio vs tdoku |"
