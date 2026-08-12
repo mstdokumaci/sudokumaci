@@ -76,7 +76,7 @@ jobs:
               print("FAILING:", p)
           PY
 
-      - name: "Diagnostic: tdoku SSE2-capped build" + full-coverage solve
+      - name: "Diagnostic: tdoku SSE2-capped build + full-coverage solve"
         run: |
           cd tdoku && ./BUILD.sh -DSSE2=on
           gcc example/solve.c build/libtdoku_static.a -O3 -o solve_sse2 -lstdc++ -lm
