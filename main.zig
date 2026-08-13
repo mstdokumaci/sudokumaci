@@ -141,7 +141,7 @@ pub fn main() !void {
     if (bench) {
         // Match tdoku's methodology: untimed warmup passes (caches, branch
         // predictor, page faults), then a timed pass over the same puzzles.
-        const warmup_passes = 3;
+        const warmup_passes = 5;
         for (0..warmup_passes) |_| try solveAll(thread_count, batch_size, puzzle_count, output);
         var timer = try std.time.Timer.start();
         try solveAll(thread_count, batch_size, puzzle_count, output);
