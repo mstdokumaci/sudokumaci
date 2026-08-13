@@ -139,9 +139,10 @@ pub fn main() !void {
     const batch_size: usize = @min(puzzle_count / thread_count + 1, BATCH_SIZE_LIMIT);
 
     if (bench) {
-        // Match tdoku's methodology: an untimed warmup pass (caches, branch
+        // Match tdoku's methodology: untimed warmup passes (caches, branch
         // predictor, page faults), then a timed pass over the same puzzles.
-        try solveAll(thread_count, batch_size, puzzle_count, output);
+        const warmup_passes = 3;
+        for (0..warmup_passes) |_| try solveAll(thread_count, batch_size, puzzle_count, output);
         var timer = try std.time.Timer.start();
         try solveAll(thread_count, batch_size, puzzle_count, output);
         const elapsed_ns = timer.read();
