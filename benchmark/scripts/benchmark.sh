@@ -134,7 +134,7 @@ for ds in "${DATASETS[@]}"; do
         def_pps=$(run_main)
         ratio=$(awk -v a="$tdoku_pps" -v b="$j1_pps" 'BEGIN{printf "%.0f%%", b / a * 100}')
         echo "| $ds | tdoku | 1 thread | $(fmt "$tdoku_pps") | - |"
-        echo "| $ds | sudokumaci | -j 1 | $(fmt "$j1_pps") | ${ratio}x |"
+        echo "| $ds | sudokumaci | -j 1 | $(fmt "$j1_pps") | ${ratio} |"
         echo "| $ds | sudokumaci | default threads | $(fmt "$def_pps") | - |"
     else
         j1_pps=$(run_main -j 1)
