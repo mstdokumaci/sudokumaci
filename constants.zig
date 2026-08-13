@@ -437,9 +437,13 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
 
         // Column-based reductions for this box
         for (first_col..first_col + 3) |col| {
+            // Pattern A: Digit confined to col within box → clear col outside box
+            // Pattern B: Digit confined to box within col → clear box outside col
             const pattern_a = (ALL81 ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
             const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
             update_row_board_clears(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
+            // Pack the removed-cells house mask into spare bits 81-107 so the
+            // apply loop derives both the cell mask and the houses from one load.
             clear_masks[forward_index] = pattern_b | @as(u128, houses_of_removed_cells(pattern_b)) << 81;
             clear_masks[reverse_index] = pattern_a | @as(u128, houses_of_removed_cells(pattern_a)) << 81;
             forward_index += 1;
