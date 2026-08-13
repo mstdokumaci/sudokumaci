@@ -2,173 +2,38 @@
 
 A Sudoku solver that solves ~1.3 million puzzles per second on modern hardware (multi-threaded; ~150,000 single-threaded). Most solvers guess one cell at a time. This one places whole digits at once, using precomputed band patterns.
 
-## The Core Idea: Digit-Centric Solving
+## Core Idea
 
 Traditional solvers ask: *"What digit goes in this cell?"*
 
 This solver asks: *"Where do all 9 instances of this digit go?"*
 
-```
-Traditional (Cell-Centric)          This Solver (Digit-Centric)
-┌───┬───┬───┐                       ┌───┬───┬───┐
-│ ? │   │   │  "What goes here?"    │ 5 │   │   │  "Where do all the
-├───┼───┼───┤                       ├───┼───┼───┤   5s go?"
-│   │   │   │                       │   │   │ 5 │
-├───┼───┼───┤                       ├───┼───┼───┤
-│   │   │   │                       │   │ 5 │   │
-└───┴───┴───┘                       └───┴───┴───┘
-```
+Within a 3-row band, one digit has exactly 162 valid placements: one in each row, one in each box, with distinct columns across the band. All of them are precomputed at compile time, so solving is a search over compatible band patterns instead of a per-cell guess.
 
-## Understanding Band Patterns
+## Constraint Propagation
 
-A Sudoku grid has three horizontal **bands**, each three rows tall (rows 0-2, 3-5, 6-8). For one digit, 162 valid placements exist within a single band. We call these "band patterns."
+After each placement, three rules prune candidates:
 
-```
-Band 0 (rows 0-2)    ┌─────────────────────────────┐
-                     │  One of 162 valid patterns  │
-                     │  for placing digit "5"      │
-─────────────────    └─────────────────────────────┘
+- **Naked singles**: a cell with one candidate left takes that digit.
+- **Hidden singles**: a digit with only one possible cell in a house takes it.
+- **Box-line reduction**: a digit confined to one row/col of a box is eliminated from that row/col in other boxes.
 
-Band 1 (rows 3-5)    ┌─────────────────────────────┐
-                     │  One of 162 valid patterns  │
-                     │  for placing digit "5"      │
-─────────────────    └─────────────────────────────┘
+## Band-Pattern Search
 
-Band 2 (rows 6-8)    ┌─────────────────────────────┐
-                     │  One of 162 valid patterns  │
-                     │  for placing digit "5"      │
-                     └─────────────────────────────┘
-```
+When propagation stalls, the solver picks the most constrained digit and searches for its placement: three band patterns, one per band. Two precomputed tables prune the search:
 
-### Why 162 Patterns?
+- `PATTERNS_FOR_OTHER_DIGITS`: patterns that share no cells, for two digits in the same band
+- `PATTERNS_FOR_SAME_DIGIT`: patterns with disjoint column sets, for one digit across the three bands
 
-In a 3×9 band, a digit must appear once in each of the 3 rows and once in each of the 3 boxes:
-
-```
-     Box 0      Box 1      Box 2
-   ┌───┬───┬───┬───┬───┬───┬───┬───┬───┐
-R0 │ 5 │ · │ · │ · │ · │ · │ · │ · │ · │  ← 5 is in column 0
-   ├───┼───┼───┼───┼───┼───┼───┼───┼───┤
-R1 │ · │ · │ · │ · │ 5 │ · │ · │ · │ · │  ← 5 is in column 4
-   ├───┼───┼───┼───┼───┼───┼───┼───┼───┤
-R2 │ · │ · │ · │ · │ · │ · │ · │ 5 │ · │  ← 5 is in column 7
-   └───┴───┴───┴───┴───┴───┴───┴───┴───┘
-```
-
-Row 0 has 9 column choices. Row 1 must use a different box, so 6 choices. Row 2 takes the last box, 3 choices. Since boxes are column-disjoint, the columns differ automatically: 9 × 6 × 3 = 162.
-
-## The Two-Phase Algorithm
-
-```mermaid
-flowchart TD
-    A[Input Puzzle] --> B[Phase 1: Constraint Propagation]
-    B --> C{Solved?}
-    C -->|Yes| D[Output Solution]
-    C -->|No| E[Phase 2: Band-Pattern Search]
-    E --> F{Found valid<br/>combination?}
-    F -->|Yes| G[Place digit]
-    G --> B
-    F -->|No| H[Backtrack]
-    H --> E
-```
-
-### Phase 1: Constraint Propagation
-
-Propagation removes candidates that cannot be part of a solution, using three rules:
-
-#### 1. Naked Singles
-When a cell has only one possible digit remaining, place it:
-```
-A cell's candidates get eliminated by placed digits in its row, column, and box:
-
-         Column already has 1,2,3,5,6,7,8
-                    ↓
-┌───┬───┬───┬───┬───┬───┬───┬───┬───┐
-│ 2 │ 5 │ 1 │ 8 │ ? │ 3 │ 6 │ 7 │ 9 │ ← Row already has 1,2,3,5,6,7,8,9
-└───┴───┴───┴───┴───┴───┴───┴───┴───┘
-                    ↑
-         Only digit 4 remains → Place 4!
-```
-
-#### 2. Hidden Singles
-When a digit can only go in one cell within a row/column/box:
-```
-Row analysis for digit "3":
-┌───┬───┬───┬───┬───┬───┬───┬───┬───┐
-│ X │ X │ X │ X │ ✓ │ X │ X │ X │ X │  ← Only one cell can have 3
-└───┴───┴───┴───┴───┴───┴───┴───┴───┘
-                 ↓
-              Place 3 here!
-```
-
-#### 3. Box-Line Reduction
-When a digit in a box is confined to a single row, eliminate it from that row in other boxes:
-```
-┌───────────┬───────────┬───────────┐
-│ · │ · │ 3?│ 3?│ 3?│ · │ · │ · │ · │  ← 3 can only be in columns 2-4
-├───┼───┼───┼───┼───┼───┼───┼───┼───┤     of this row within Box 0
-│ · │ · │ · │   │   │   │   │   │   │
-├───┼───┼───┼───┼───┼───┼───┼───┼───┤  So eliminate 3 from columns
-│ · │ · │ · │   │   │   │   │   │   │  3-8 in row 0!
-└───────────┴───────────┴───────────┘
-    Box 0       Box 1       Box 2
-```
-
-### Phase 2: Band-Pattern Search
-
-When propagation stalls, the solver searches for valid digit placements:
-
-```mermaid
-flowchart LR
-    A[Select most<br/>constrained digit] --> B[Filter valid<br/>band patterns]
-    B --> C[Try Band 0<br/>pattern]
-    C --> D[Try compatible<br/>Band 1 pattern]
-    D --> E[Try compatible<br/>Band 2 pattern]
-    E --> F{All 3 bands<br/>compatible?}
-    F -->|Yes| G[Place all 9<br/>instances]
-    F -->|No| H[Try next<br/>combination]
-```
-
-#### Compatibility Filtering
-
-Not all band patterns work together. The solver precomputes two compatibility tables:
-
-**PATTERNS_FOR_OTHER_DIGITS**: patterns that share no cells. Two different digits in the same band cannot overlap.
-```
-Band 0: 5 at columns (0, 4, 7)   ✓ Compatible - no overlapping columns
-Band 1: 5 at columns (2, 5, 8)   ✓ for different digits in same band
-Band 2: 5 at columns (1, 3, 6)   ✓
-```
-
-**PATTERNS_FOR_SAME_DIGIT**: patterns with disjoint column sets. A digit's three band patterns must use different columns.
-```
-Band 0: 5 at (0, 4, 7)           
-Band 1: 5 at (1, 5, 6)  ← Must use columns NOT used by other bands
-Band 2: 5 at (2, 3, 8)    (for same digit across bands)
-```
+Failed combinations backtrack to the next candidate.
 
 ## Data Structures: Bitboards
 
-The entire puzzle state fits in a few integers using **bitboards**:
+Each digit keeps a u128 candidate mask, one bit per cell.
 
-```
-digit_candidate_cells[9] - One u128 per digit
-                           ↓
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ bit 0   bit 1   bit 2  ...  bit 80                                              │
-│   ↓       ↓       ↓           ↓                                                 │
-│ ┌───┬───┬───┬───┬───┬───┬───┬───┬───┐                                           │
-│ │ 1 │ 0 │ 1 │ 1 │ 0 │ 1 │ 0 │ 1 │ 1 │ ... (81 bits total)                       │
-│ └───┴───┴───┴───┴───┴───┴───┴───┴───┘                                           │
-│   ↑                                                                             │
-│   Cell 0 can hold this digit                                                    │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-**Why bitboards?**
-- Eliminate a digit from 20 cells (peers)? One AND operation: `candidates &= ~peer_mask`
+- Eliminate a digit from 20 peers? One AND: `candidates &= ~peer_mask`
 - Count candidates? One instruction: `@popCount(candidates)`
-- Find first candidate? One instruction: `@ctz(candidates)`
+- Find the first candidate? One instruction: `@ctz(candidates)`
 
 ## Compile-Time Precomputation
 
@@ -184,34 +49,9 @@ All lookup tables are generated at compile time using Zig's `comptime`:
 
 No runtime work goes into building these tables.
 
-## Concurrency: Dynamic Batch Assignment
+## Concurrency
 
-For batch processing, threads dynamically claim work from a shared pool:
-
-```
-                    Shared Atomic Counter
-                    ┌─────────────────┐
-                    │  next_batch: 4  │
-                    └────────┬────────┘
-                             │
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-         ▼                   ▼                   ▼
-    ┌─────────┐         ┌─────────┐         ┌─────────┐
-    │Thread 0 │         │Thread 1 │         │Thread 2 │
-    │ Batch 0 │         │ Batch 1 │         │ Batch 2 │
-    │  done!  │         │working..│         │  done!  │
-    └────┬────┘         └─────────┘         └────┬────┘
-         │                                       │
-         └──► atomic_fetch_add ◄─────────────────┘
-                    │
-              "I got batch 4!"
-              "I got batch 5!"
-```
-
-A thread claims its next batch with an atomic fetch-and-add on the counter. The thread that finishes first gets the next batch. No coordination, no waiting, no contention.
-
-This is simpler than work-stealing, where threads take from each other's queues. All unclaimed work lives in one shared pool.
+Threads claim puzzles in batches from one shared atomic counter. The thread that finishes its batch first claims the next one; there is no coordination between workers. Simpler than work-stealing: all unclaimed work lives in a single pool.
 
 ## Performance
 
