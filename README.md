@@ -1,6 +1,6 @@
 # Sudokumaci - Zig Sudoku Solver
 
-A high-performance Sudoku solver that solves ~750,000 puzzles per second on modern hardware. Instead of the traditional "guess a cell" backtracking, this solver places **entire digits at once** using a novel band-pattern approach.
+A Sudoku solver that solves ~1.3 million puzzles per second on modern hardware (multi-threaded; ~150,000 single-threaded). Most solvers guess one cell at a time. This one places whole digits at once, using precomputed band patterns.
 
 ## The Core Idea: Digit-Centric Solving
 
@@ -21,7 +21,7 @@ Traditional (Cell-Centric)          This Solver (Digit-Centric)
 
 ## Understanding Band Patterns
 
-A Sudoku grid has three horizontal **bands** (rows 0-2, 3-5, 6-8). For any single digit, there are exactly **162 valid ways** to place it within one band. We call these "band patterns."
+A Sudoku grid has three horizontal **bands**, each three rows tall (rows 0-2, 3-5, 6-8). For one digit, 162 valid placements exist within a single band. We call these "band patterns."
 
 ```
 Band 0 (rows 0-2)    ┌─────────────────────────────┐
@@ -55,7 +55,7 @@ R2 │ · │ · │ · │ · │ · │ · │ · │ 5 │ · │  ← 5 is i
    └───┴───┴───┴───┴───┴───┴───┴───┴───┘
 ```
 
-For row 0: 9 column choices. For row 1: must be in different box, 6 choices. For row 2: must be in remaining box, 3 choices. But we also need different columns... combinatorics gives us exactly **162** valid patterns.
+Row 0 has 9 column choices. Row 1 must use a different box, so 6 choices. Row 2 takes the last box, 3 choices. Since boxes are column-disjoint, the columns differ automatically: 9 × 6 × 3 = 162.
 
 ## The Two-Phase Algorithm
 
@@ -74,7 +74,7 @@ flowchart TD
 
 ### Phase 1: Constraint Propagation
 
-The propagation engine eliminates impossible candidates using three techniques:
+Propagation removes candidates that cannot be part of a solution, using three rules:
 
 #### 1. Naked Singles
 When a cell has only one possible digit remaining, place it:
@@ -116,7 +116,7 @@ When a digit in a box is confined to a single row, eliminate it from that row in
 
 ### Phase 2: Band-Pattern Search
 
-When propagation stalls, we search for valid digit placements:
+When propagation stalls, the solver searches for valid digit placements:
 
 ```mermaid
 flowchart LR
@@ -131,16 +131,16 @@ flowchart LR
 
 #### Compatibility Filtering
 
-Not all band patterns work together. We precompute two compatibility tables:
+Not all band patterns work together. The solver precomputes two compatibility tables:
 
-**DIGIT_COMPATIBLE_BANDS**: Patterns that don't share any cells
+**PATTERNS_FOR_OTHER_DIGITS**: patterns that share no cells. Two different digits in the same band cannot overlap.
 ```
 Band 0: 5 at columns (0, 4, 7)   ✓ Compatible - no overlapping columns
 Band 1: 5 at columns (2, 5, 8)   ✓ for different digits in same band
 Band 2: 5 at columns (1, 3, 6)   ✓
 ```
 
-**BOARD_COMPATIBLE_BANDS**: Patterns that use different column sets
+**PATTERNS_FOR_SAME_DIGIT**: patterns with disjoint column sets. A digit's three band patterns must use different columns.
 ```
 Band 0: 5 at (0, 4, 7)           
 Band 1: 5 at (1, 5, 6)  ← Must use columns NOT used by other bands
@@ -182,7 +182,7 @@ All lookup tables are generated at compile time using Zig's `comptime`:
 | `PATTERNS_FOR_OTHER_DIGITS[162]` | 162 bitmasks | Pattern → non-overlapping patterns |
 | `PATTERNS_FOR_SAME_DIGIT[162]` | 162 bitmasks | Pattern → column-compatible patterns |
 
-This means **zero runtime overhead** for pattern enumeration!
+No runtime work goes into building these tables.
 
 ## Concurrency: Dynamic Batch Assignment
 
@@ -209,19 +209,21 @@ For batch processing, threads dynamically claim work from a shared pool:
               "I got batch 5!"
 ```
 
-Each thread atomically increments the counter to claim its next batch. Whoever finishes first gets the next available batch—no coordination, no waiting, no contention.
+A thread claims its next batch with an atomic fetch-and-add on the counter. The thread that finishes first gets the next batch. No coordination, no waiting, no contention.
 
-**Note:** This is simpler than true "work-stealing" (where threads take from each other's queues). Here, all unclaimed work lives in one shared pool.
+This is simpler than work-stealing, where threads take from each other's queues. All unclaimed work lives in one shared pool.
 
 ## Performance
 
-On modern hardware, solving ~49,000 17-clue puzzles:
+Measured on a 2.3 GHz Intel Core i9-9880H (16 logical CPUs), ReleaseFast build, solving `test-data/all_17_clue.sudokus` (49,151 17-clue puzzles).
 
-| Metric | Value |
-|--------|-------|
-| Wall time | ~65ms |
-| Puzzles/second | ~750,000 |
-| Time per puzzle | ~1.3 microseconds |
+Benchmark method matches tdoku: five untimed warmup passes, then one timed pass.
+
+| Metric | 1 thread | All threads |
+|--------|----------|-------------|
+| Puzzles/second | ~148,000 | ~1,360,000 |
+| Time per puzzle | ~6.7µs | ~0.73µs |
+| Wall time | ~330ms | ~36ms |
 
 ## Build & Run
 
@@ -256,7 +258,7 @@ GitHub Actions runs this automatically on pushes/PRs touching solver code (see `
 - `benchmark-macos` (macos-15-intel): sudokumaci vs [tdoku](https://github.com/t-dillon/tdoku). tdoku is x86-only, and its Linux builds return wrong solutions on some puzzles (upstream bug), so it only runs on Intel macOS where it is correct.
 - `benchmark-linux-arm` (ubuntu-24.04-arm): sudokumaci-only on ARM64.
 
-To run locally (results in `benchmark/results/results.md`):
+To run locally:
 
 ```bash
 # sudokumaci only
@@ -289,4 +291,4 @@ TDOKU_BENCH=/path/to/tdoku/build/run_benchmark bash benchmark/scripts/benchmark.
 | Constraint checking | Per-cell validation | Pre-filtered by tables |
 | Cache efficiency | Random cell access | Sequential table lookups |
 
-By searching at the digit level instead of the cell level, we make fewer decisions with better-informed choices.
+Searching by digit instead of by cell cuts decisions per puzzle from up to 81 to up to 9, and the compatibility tables filter the options before the search runs.

@@ -2,9 +2,9 @@
 // SUDOKU SOLVER - PRECOMPUTED LOOKUP TABLES
 // =============================================================================
 //
-// This file contains all lookup tables computed at compile time.
-// These tables encode the structure and constraints of a Sudoku puzzle,
-// enabling fast bitwise operations at runtime.
+// All lookup tables below are computed at compile time. They encode the
+// structure and constraints of a Sudoku grid so the solver runs on plain
+// bit operations.
 //
 // Table Summary:
 // - BIT* arrays: Single-bit masks for indexing
@@ -169,8 +169,8 @@ pub const BIT81 = [81]u81{
 // HOUSE DEFINITIONS
 // =============================================================================
 //
-// A "house" is a row, column, or box - any group of 9 cells that must
-// contain each digit exactly once.
+// A "house" is a row, column, or box: any 9 cells that must contain each
+// digit exactly once.
 //
 // House indices:
 //   0-8:   Rows (top to bottom)
@@ -282,8 +282,8 @@ pub const CLEAR_HOUSE_INDEXES = HOUSE_INDEX_TABLES[1];
 // =============================================================================
 //
 // A "band" is a horizontal strip of 3 rows (rows 0-2, 3-5, or 6-8).
-// For any digit, there are exactly 162 valid ways to place its 3 instances
-// within a band such that:
+// For one digit there are exactly 162 valid ways to place its 3 instances
+// within a band, subject to:
 //   - One instance per row
 //   - One instance per box (within the band)
 //   - All three in different columns
@@ -465,16 +465,14 @@ pub const BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[1];
 // BAND PATTERN COMPATIBILITY
 // =============================================================================
 //
-// When searching for valid digit placements, we need to know which band patterns
-// are compatible with each other:
+// The search needs to know which band patterns can coexist:
 //
-// 1. PATTERNS_FOR_OTHER_DIGITS: Patterns that don't share any cells
-//    Used to reserve space for future digits - if we use pattern P for digit 5,
-//    other digits can only use patterns that don't overlap with P's cells.
+// 1. PATTERNS_FOR_OTHER_DIGITS: patterns that share no cells. If digit D
+//    uses pattern P, other digits in that band are limited to these.
 //
-// 2. PATTERNS_FOR_SAME_DIGIT: Patterns that use different column sets
-//    Used when placing all 9 instances of a single digit - the 3 band patterns
-//    must use disjoint columns (since each digit appears once per column).
+// 2. PATTERNS_FOR_SAME_DIGIT: patterns with disjoint column sets. One
+//    digit's 3 band patterns must use different columns, since a digit
+//    appears once per column.
 //
 
 /// PATTERNS_FOR_OTHER_DIGITS[p] = patterns that share no cells with pattern p

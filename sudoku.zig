@@ -42,20 +42,21 @@ const BITS_PER_ROW: u7 = 9;
 // Board clears pattern mask (54 bits for forward patterns, 54 for reverse)
 const BOARD_CLEARS_HALF_MASK: u128 = (1 << 54) - 1;
 
-// Invalid state sentinel - returned when puzzle has no solution
+// Sentinel returned when a puzzle has no solution
 const INVALID_DIGIT_INDEX: usize = 9;
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
 
-/// Extracts the 9-bit row mask from a 81-bit cell bitboard
+/// Extracts the 9-bit row mask for one row from an 81-bit cell bitboard
 inline fn getRowMask(cells: u128, row_index: usize) u9 {
     return @truncate(cells >> @intCast(row_index * BITS_PER_ROW) & ROW_MASK);
 }
 
-/// Computes the intersection of all valid band patterns compatible with current row candidates.
-/// Used for box-line reduction to find patterns that match all 9 rows.
+/// Finds every box-line reduction pattern that matches the current candidates.
+/// Intersects ROW_BOARD_CLEARS over all 9 rows, so a pattern survives only
+/// if each row's candidate mask allows it.
 inline fn getMatchingBoardClears(candidate_cells: u128) u128 {
     return ROW_BOARD_CLEARS[0][getRowMask(candidate_cells, 0)] &
         ROW_BOARD_CLEARS[1][getRowMask(candidate_cells, 1)] &
@@ -68,8 +69,8 @@ inline fn getMatchingBoardClears(candidate_cells: u128) u128 {
         ROW_BOARD_CLEARS[8][getRowMask(candidate_cells, 8)];
 }
 
-/// Computes valid band patterns by intersecting row constraints for a 3-row band.
-/// band_start_row should be 0, 3, or 6 (the first row of the band).
+/// Intersects the per-row pattern tables for one band.
+/// band_start_row is the band's first row: 0, 3, or 6.
 inline fn getValidBandPatterns(candidate_cells: u128, band_start_row: usize, existing_constraints: u192) u192 {
     return ROW_BANDS[0][getRowMask(candidate_cells, band_start_row)] &
         ROW_BANDS[1][getRowMask(candidate_cells, band_start_row + 1)] &
@@ -156,15 +157,16 @@ pub const Sudoku = struct {
     // CONSTRAINT PROPAGATION
     // =========================================================================
 
-    /// Propagates constraints from new placements, applying:
-    /// 1. Hidden singles (digits with only one location in a house)
-    /// 2. Box-line reduction (when a digit is confined to one row/col within a box)
-    /// 3. Naked singles (cells with only one candidate)
+    /// Propagates constraints after new placements, applying:
+    /// 1. Hidden singles: a digit with only one possible location in a house
+    /// 2. Box-line reduction: a digit confined to one row/col within a box
+    /// 3. Naked singles: a cell with only one candidate
     ///
-    /// Naked singles are searched only in houses whose candidate counts changed
-    /// during this prune step.
+    /// Naked singles are checked only in houses whose candidate counts
+    /// changed during this pass.
     ///
-    /// Returns the index of the most constrained digit for search, or INVALID_DIGIT_INDEX if invalid.
+    /// Returns the most constrained digit for search, or INVALID_DIGIT_INDEX
+    /// when the puzzle is impossible.
     fn propagateConstraints(self: *Sudoku, new_placements: [9]u128) usize {
         var min_candidates: usize = 81;
         var most_constrained_digit: usize = 0;
@@ -180,10 +182,11 @@ pub const Sudoku = struct {
         }
 
         // ── suffix[i] = OR of digit_candidate_cells[j] for j >= i at call entry ──
-        // Digits are processed in ascending order and only mutate their own
-        // candidates, so at digit `i` the other digits' candidate union is
-        // exactly (prefix: processed digits, post-mutation) | (suffix[i+1]:
-        // unprocessed digits, entry state).
+        // Digits run in ascending order, and each mutates only its own
+        // candidates. At digit i the other digits' candidate union is
+        // (prefix: processed digits, post-mutation) | (suffix[i+1]:
+        // unprocessed digits, entry state), so suffix is snapshotted
+        // before the loop.
         var suffix: [10]u128 = .{0} ** 10;
         var i: usize = 9;
         while (i > 0) : (i -= 1) {
@@ -196,11 +199,11 @@ pub const Sudoku = struct {
             total_new_placements |= placements;
         }
 
-        // Cells not claimed by any placement this call. A digit keeps every
-        // candidate except cells newly placed by other digits; its own
-        // placements stay candidates: unoccupied_cells | new_placements[digit]
-        // (≡ ~(total_new_placements ^ new_placements[digit]), since each
-        // digit's placements are part of the union).
+        // Cells no placement claimed this call. A digit keeps every candidate
+        // except cells newly placed by other digits; its own placements stay
+        // candidates. The prune mask is unoccupied_cells | new_placements[digit]
+        // (≡ ~(total_new_placements ^ new_placements[digit]), because each
+        // digit's placements sit inside the union).
         const unoccupied_cells = ~total_new_placements;
 
         // Process each pending digit
@@ -237,7 +240,7 @@ pub const Sudoku = struct {
                         const cell = @ctz(unique_cells);
                         const houses_after_placement = self.pending_digit_houses[digit] & CLEAR_HOUSE_INDEXES[cell];
                         if (houses_after_placement != self.pending_digit_houses[digit]) {
-                            // Found a hidden single - this cell must contain this digit
+                            // Hidden single: this cell must hold this digit
                             const before = candidates.*;
                             self.pending_digit_houses[digit] = houses_after_placement;
                             candidates.* &= CLEAR_HOUSES[cell];
@@ -262,9 +265,9 @@ pub const Sudoku = struct {
 
                             if (matching_patterns == 0) break;
                             while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
-                                // One load serves both purposes: bits 0-80 are the
-                                // keep-mask (AND ignores bits 81+), bits 81-107 are
-                                // the houses of the removed cells.
+                                // One load does double duty: bits 0-80 are the
+                                // keep-mask (AND ignores bits 81+), bits 81-107
+                                // hold the houses of the removed cells.
                                 const clear = BOARD_CLEARS[@ctz(matching_patterns)];
                                 candidates.* &= clear;
                                 touched_houses |= @as(usize, @truncate(clear >> 81));
@@ -284,7 +287,7 @@ pub const Sudoku = struct {
                         if (count_in_house == 0) {
                             return INVALID_DIGIT_INDEX; // No valid cell for this digit in house
                         } else if (count_in_house == 1) {
-                            // Naked single - only one cell possible in this house
+                            // Naked single: one candidate cell left in this house
                             const cell = @ctz(candidates_in_house);
                             candidates.* &= CLEAR_HOUSES[cell];
                             self.pending_digit_houses[digit] &= CLEAR_HOUSE_INDEXES[cell];
@@ -303,7 +306,7 @@ pub const Sudoku = struct {
                     most_constrained_digit = digit;
                 }
             } else {
-                // Digit already fully placed - finalize it next
+                // Digit fully placed; the search clears it from pending_digits next
                 min_candidates = 9;
                 most_constrained_digit = digit;
             }
@@ -324,13 +327,13 @@ pub const Sudoku = struct {
     // BAND-PATTERN SEARCH
     // =========================================================================
 
-    /// Searches for a valid placement of the given digit using band patterns.
-    /// A complete placement consists of 3 compatible band patterns (one per horizontal band).
+    /// Searches for a valid placement of `digit` using band patterns.
+    /// A full placement is 3 compatible band patterns, one per horizontal band.
     ///
-    /// - `digit`: The digit (0-8) to place
-    /// - `available_patterns`: Patterns still available for future digits (per band)
+    /// - `digit`: digit (0-8) to place
+    /// - `available_patterns`: patterns future digits may still use (per band)
     ///
-    /// Returns true if a valid solution was found.
+    /// Returns true when a valid solution was found.
     fn searchValidBands(self: *Sudoku, digit: usize, available_patterns: [3]u192) bool {
         self.pending_digits ^= BIT9[digit];
 

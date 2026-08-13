@@ -7,10 +7,10 @@ const Sudoku = @import("sudoku.zig").Sudoku;
 // CONFIGURATION
 // =============================================================================
 
-/// Number of puzzles each thread processes before claiming more work
+/// Puzzles a thread processes before claiming the next batch
 const BATCH_SIZE_LIMIT: usize = 128;
 
-/// Size of output record: 81 (puzzle) + 1 (comma) + 81 (solution) + 1 (newline)
+/// Output record: 81 puzzle chars + comma + 81 solution chars + newline
 const OUTPUT_RECORD_SIZE: usize = 164;
 
 /// Size of a puzzle string (81 cells)
@@ -23,16 +23,16 @@ const MAX_THREADS: usize = 100;
 // SHARED STATE
 // =============================================================================
 
-/// Atomic counter for dynamic batch assignment
-/// Threads atomically fetch-and-add to claim their next batch
+/// Shared counter for dynamic batch assignment
+/// A thread fetch-and-adds to claim its next batch
 var next_batch_index: usize = 0;
 
 // =============================================================================
 // WORKER THREAD
 // =============================================================================
 
-/// Worker function executed by each thread.
-/// Processes puzzles in batches, writing solutions directly to the shared output buffer.
+/// Worker loop for one thread.
+/// Solves puzzles in batches, writing each solution straight into the shared output buffer.
 fn solveWorker(initial_batch: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
     var current_batch = initial_batch;
     var solver = Sudoku{};
@@ -61,7 +61,7 @@ fn solveWorker(initial_batch: usize, batch_size: usize, puzzle_count: usize, out
     }
 }
 
-/// Runs one full solve pass over all puzzles (spawn workers, wait for completion).
+/// One solve pass over every puzzle: spawn all workers, then wait for them.
 fn solveAll(thread_count: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
     var threads: [MAX_THREADS]std.Thread = undefined;
 
@@ -139,8 +139,8 @@ pub fn main() !void {
     const batch_size: usize = @min(puzzle_count / thread_count + 1, BATCH_SIZE_LIMIT);
 
     if (bench) {
-        // Match tdoku's methodology: untimed warmup passes (caches, branch
-        // predictor, page faults), then a timed pass over the same puzzles.
+        // Match tdoku's methodology: warm up untimed (caches, branch
+        // predictor, page faults), then time one pass over the same puzzles.
         const warmup_passes = 5;
         for (0..warmup_passes) |_| try solveAll(thread_count, batch_size, puzzle_count, output);
         var timer = try std.time.Timer.start();
