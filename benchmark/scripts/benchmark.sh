@@ -119,7 +119,7 @@ echo
 echo "Runner: $(uname -sm) | $(cpu_info)"
 echo
 if [[ $HAVE_TDOKU -eq 1 ]]; then
-    echo "| dataset | solver | config | puzzles/sec | ratio vs tdoku |"
+    echo "| dataset | solver | config | puzzles/sec | vs tdoku |"
     echo "|---|---|---|---|---|"
 else
     echo "| dataset | solver | config | puzzles/sec |"
@@ -132,7 +132,7 @@ for ds in "${DATASETS[@]}"; do
         tdoku_pps=$(run_tdoku)
         j1_pps=$(run_main -j 1)
         def_pps=$(run_main)
-        ratio=$(awk -v a="$tdoku_pps" -v b="$j1_pps" 'BEGIN{printf "%.2f", a / b}')
+        ratio=$(awk -v a="$tdoku_pps" -v b="$j1_pps" 'BEGIN{printf "%.0f%%", b / a * 100}')
         echo "| $ds | tdoku | 1 thread | $(fmt "$tdoku_pps") | - |"
         echo "| $ds | sudokumaci | -j 1 | $(fmt "$j1_pps") | ${ratio}x |"
         echo "| $ds | sudokumaci | default threads | $(fmt "$def_pps") | - |"

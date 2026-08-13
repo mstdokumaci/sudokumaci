@@ -242,7 +242,7 @@ zig build-exe -O ReleaseFast -mcpu=native -lc main.zig
 # Limit worker threads (default: one per CPU)
 ./main -j 1 puzzles.txt
 
-# Benchmark mode: three untimed warmup passes, then a timed pass; prints puzzles/sec to stderr
+# Benchmark mode: five untimed warmup passes, then a timed pass; prints puzzles/sec to stderr
 ./main --bench [-j N] puzzles.txt
 
 # Benchmark
