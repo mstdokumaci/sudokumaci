@@ -7,7 +7,7 @@ MAIN_BIN="${MAIN_BIN:-./main}"
 TDOKU_BENCH="${TDOKU_BENCH:-}"
 SUDOKU_RUNS="${SUDOKU_RUNS:-5}"
 TDOKU_RUNS="${TDOKU_RUNS:-3}"
-OUT_DIR="${OUT_DIR:-bench-results}"
+OUT_DIR="${OUT_DIR:-benchmark/results}"
 
 mkdir -p "$OUT_DIR"
 SUMMARY="$OUT_DIR/results.md"

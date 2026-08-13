@@ -256,14 +256,14 @@ GitHub Actions runs this automatically on pushes/PRs touching solver code (see `
 - `benchmark-macos` (macos-15-intel): sudokumaci vs [tdoku](https://github.com/t-dillon/tdoku). tdoku is x86-only, and its Linux builds return wrong solutions on some puzzles (upstream bug), so it only runs on Intel macOS where it is correct.
 - `benchmark-linux-arm` (ubuntu-24.04-arm): sudokumaci-only on ARM64.
 
-To run locally (results in `bench-results/results.md`):
+To run locally (results in `benchmark/results/results.md`):
 
 ```bash
 # sudokumaci only
-bash .github/scripts/benchmark.sh
+bash benchmark/scripts/benchmark.sh
 
 # sudokumaci vs tdoku (build tdoku once: git clone https://github.com/t-dillon/tdoku && cd tdoku && ./BUILD.sh)
-TDOKU_BENCH=/path/to/tdoku/build/run_benchmark bash .github/scripts/benchmark.sh
+TDOKU_BENCH=/path/to/tdoku/build/run_benchmark bash benchmark/scripts/benchmark.sh
 ```
 
 ### Input Format
