@@ -33,7 +33,7 @@ var next_batch_index: usize = 0;
 
 /// Worker loop for one thread.
 /// Solves puzzles in batches, writing each solution straight into the shared output buffer.
-fn solveWorker(initial_batch: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
+fn workerLoop(initial_batch: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
     var current_batch = initial_batch;
     var solver = Sudoku{};
 
@@ -62,7 +62,7 @@ fn solveWorker(initial_batch: usize, batch_size: usize, puzzle_count: usize, out
 }
 
 /// One solve pass over every puzzle: spawn all workers, then wait for them.
-fn solveAll(thread_count: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
+fn runSolvePass(thread_count: usize, batch_size: usize, puzzle_count: usize, output: []u8) !void {
     var threads: [MAX_THREADS]std.Thread = undefined;
 
     // Initialize shared counter: first N batches are pre-assigned to threads
@@ -70,7 +70,7 @@ fn solveAll(thread_count: usize, batch_size: usize, puzzle_count: usize, output:
 
     for (0..thread_count) |thread_index| {
         const initial_batch = thread_index * batch_size;
-        threads[thread_index] = try std.Thread.spawn(.{}, solveWorker, .{ initial_batch, batch_size, puzzle_count, output });
+        threads[thread_index] = try std.Thread.spawn(.{}, workerLoop, .{ initial_batch, batch_size, puzzle_count, output });
     }
 
     for (0..thread_count) |thread_index| {
@@ -142,15 +142,15 @@ pub fn main() !void {
         // Match tdoku's methodology: warm up untimed (caches, branch
         // predictor, page faults), then time one pass over the same puzzles.
         const warmup_passes = 5;
-        for (0..warmup_passes) |_| try solveAll(thread_count, batch_size, puzzle_count, output);
+        for (0..warmup_passes) |_| try runSolvePass(thread_count, batch_size, puzzle_count, output);
         var timer = try std.time.Timer.start();
-        try solveAll(thread_count, batch_size, puzzle_count, output);
+        try runSolvePass(thread_count, batch_size, puzzle_count, output);
         const elapsed_ns = timer.read();
         const usec_per_puzzle = @as(f64, @floatFromInt(elapsed_ns)) / @as(f64, @floatFromInt(puzzle_count)) / 1000.0;
         const puzzles_per_sec = @as(f64, @floatFromInt(puzzle_count)) * 1_000_000_000.0 / @as(f64, @floatFromInt(elapsed_ns));
         std.debug.print("puzzles: {d} wall_us: {d} usec/puzzle: {d:.2} puzzles/sec: {d:.0}\n", .{ puzzle_count, elapsed_ns / 1000, usec_per_puzzle, puzzles_per_sec });
     } else {
-        try solveAll(thread_count, batch_size, puzzle_count, output);
+        try runSolvePass(thread_count, batch_size, puzzle_count, output);
         // Write all results to stdout (excluding final newline)
         try std.fs.File.stdout().writeAll(output[0 .. puzzle_count * OUTPUT_RECORD_SIZE - 1]);
     }

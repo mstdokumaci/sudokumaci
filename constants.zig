@@ -13,7 +13,7 @@
 // - VALID_BAND_CELLS: The 162 valid ways to place a digit in a 3x9 band
 // - ROW_BANDS: Row mask → compatible band patterns
 // - PATTERNS_FOR_*: Pattern compatibility for search pruning
-// - ROW_BOARD_CLEARS: Pattern matching for box-line reduction
+// - ROW_REDUCTION_PATTERNS: Pattern matching for box-line reduction
 //
 // =============================================================================
 
@@ -24,13 +24,13 @@ const std = @import("std");
 // =============================================================================
 
 /// All 27 houses set (9 rows + 9 columns + 9 boxes)
-pub const ALL27: usize = 0b111111111111111111111111111;
+pub const ALL_HOUSES: usize = 0b111111111111111111111111111;
 
 /// All 81 cells set
-pub const ALL81: u81 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
+pub const ALL_CELLS: u81 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 /// All 162 band patterns set
-pub const ALL162: u192 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
+pub const ALL_PATTERNS: u192 = 0b111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111;
 
 // =============================================================================
 // SINGLE-BIT MASKS
@@ -228,39 +228,39 @@ pub const HOUSE_CELLS = [27]u81{
 
 /// CLEAR_BAND_HOUSES[cell] = mask that preserves houses NOT containing this cell
 /// (for cells 0-26 within a single band)
-fn generate_clear_band_houses() [27]usize {
+fn generateClearBandHouses() [27]usize {
     var masks: [27]usize = undefined;
     for (0..27) |cell| {
         const row = cell / 9;
         const box = (cell % 9) / 3;
         // All houses except this cell's row and box, plus the cell itself
-        masks[cell] = ((BAND_HOUSE_CELLS[row] | BAND_HOUSE_CELLS[box + 3]) ^ ALL27) | BIT27[cell];
+        masks[cell] = ((BAND_HOUSE_CELLS[row] | BAND_HOUSE_CELLS[box + 3]) ^ ALL_HOUSES) | BIT27[cell];
     }
     return masks;
 }
 
-const CLEAR_BAND_HOUSES = generate_clear_band_houses();
+const CLEAR_BAND_HOUSES = generateClearBandHouses();
 
 /// CLEAR_HOUSES[cell] = mask to keep this cell + eliminate all 20 peer cells
 /// (All cells sharing a row, column, or box with this cell are zeroed)
-fn generate_clear_houses() [81]u81 {
+fn generateClearHouses() [81]u81 {
     var masks: [81]u81 = undefined;
     for (0..81) |cell| {
         const row = cell / 9;
         const col = cell % 9;
         const box = (row / 3) * 3 + (col / 3);
         // XOR removes all cells in same row/col/box, then OR adds back this cell
-        masks[cell] = ((HOUSE_CELLS[row] | HOUSE_CELLS[col + 9] | HOUSE_CELLS[box + 18]) ^ ALL81) | BIT81[cell];
+        masks[cell] = ((HOUSE_CELLS[row] | HOUSE_CELLS[col + 9] | HOUSE_CELLS[box + 18]) ^ ALL_CELLS) | BIT81[cell];
     }
     return masks;
 }
 
-pub const CLEAR_HOUSES = generate_clear_houses();
+pub const CLEAR_HOUSES = generateClearHouses();
 
 /// HOUSE_INDEXES[cell] = mask of the 3 houses (row, column, box) containing this cell.
 /// CLEAR_HOUSE_INDEXES[cell] = complement: masks the houses to mark satisfied when
 /// a digit is placed at this cell.
-fn generate_house_indexes() struct { [81]usize, [81]usize } {
+fn generateHouseIndexes() struct { [81]usize, [81]usize } {
     var house_indexes: [81]usize = undefined;
     var clear_house_indexes: [81]usize = undefined;
     for (0..81) |cell| {
@@ -268,12 +268,12 @@ fn generate_house_indexes() struct { [81]usize, [81]usize } {
         const col = cell % 9;
         const box = (row / 3) * 3 + (col / 3);
         house_indexes[cell] = BIT9[row] | BIT9[col] << 9 | BIT9[box] << 18;
-        clear_house_indexes[cell] = ALL27 ^ house_indexes[cell];
+        clear_house_indexes[cell] = ALL_HOUSES ^ house_indexes[cell];
     }
     return .{ house_indexes, clear_house_indexes };
 }
 
-const HOUSE_INDEX_TABLES = generate_house_indexes();
+const HOUSE_INDEX_TABLES = generateHouseIndexes();
 pub const HOUSE_INDEXES = HOUSE_INDEX_TABLES[0];
 pub const CLEAR_HOUSE_INDEXES = HOUSE_INDEX_TABLES[1];
 
@@ -291,10 +291,10 @@ pub const CLEAR_HOUSE_INDEXES = HOUSE_INDEX_TABLES[1];
 
 /// VALID_BAND_CELLS[i] = the 27-bit pattern for the i-th valid band placement
 /// Each pattern has exactly 3 bits set (one per row in the band)
-fn generate_valid_band_cells() [162]usize {
+fn generateValidBandCells() [162]usize {
     @setEvalBranchQuota(10000);
     var patterns: [162]usize = .{0} ** 162;
-    patterns[0] = ALL27; // Start with all cells available
+    patterns[0] = ALL_HOUSES; // Start with all cells available
 
     // Progressively constrain by placing one cell per row
     for (0..3) |row| {
@@ -316,7 +316,7 @@ fn generate_valid_band_cells() [162]usize {
     return patterns;
 }
 
-pub const VALID_BAND_CELLS = generate_valid_band_cells();
+pub const VALID_BAND_CELLS = generateValidBandCells();
 
 // =============================================================================
 // ROW → BAND PATTERN MAPPING
@@ -329,7 +329,7 @@ pub const VALID_BAND_CELLS = generate_valid_band_cells();
 /// ROW_BANDS[row_in_band][row_candidates] = bitmask of compatible band patterns
 /// row_in_band: 0, 1, or 2 (position within band)
 /// row_candidates: 9-bit mask of columns where digit can go in that row
-fn generate_row_bands() [3][512]u192 {
+fn generateRowBands() [3][512]u192 {
     @setEvalBranchQuota(100000);
     var table: [3][512]u192 = .{.{0} ** 512} ** 3;
 
@@ -354,7 +354,7 @@ fn generate_row_bands() [3][512]u192 {
     return table;
 }
 
-pub const ROW_BANDS = generate_row_bands();
+pub const ROW_BANDS = generateRowBands();
 
 // =============================================================================
 // BOX-LINE REDUCTION TABLES
@@ -368,7 +368,7 @@ pub const ROW_BANDS = generate_row_bands();
 // - Patterns 54-107: Reverse patterns (for symmetric eliminations)
 //
 
-fn update_row_board_clears(
+fn updateRowReductions(
     table: *[9][512]u128,
     forward_idx: usize,
     reverse_idx: usize,
@@ -378,13 +378,13 @@ fn update_row_board_clears(
     for (0..9) |row| {
         const pattern_a_row = (pattern_a >> (row * 9)) & 0b111111111;
         const pattern_b_row = (pattern_b >> (row * 9)) & 0b111111111;
-        var max_row: usize = 0;
+        var max_row_mask: usize = 0;
         if (pattern_a_row > pattern_b_row) {
-            max_row = pattern_a_row;
+            max_row_mask = pattern_a_row;
         } else {
-            max_row = pattern_b_row;
+            max_row_mask = pattern_b_row;
         }
-        for (1..max_row) |candidates| {
+        for (1..max_row_mask) |candidates| {
             if (pattern_a_row & candidates == candidates) {
                 table[row][candidates] |= @as(u128, 1) << @intCast(forward_idx);
             }
@@ -396,10 +396,10 @@ fn update_row_board_clears(
 }
 
 /// Houses containing cells REMOVED by a keep-mask (the complement of the
-/// stored 81-bit cell mask, ~6 cells per board-clear pattern).
-fn houses_of_removed_cells(keep: u128) usize {
+/// stored 81-bit cell mask, ~6 cells per reduction pattern).
+fn housesOfRemovedCells(keep: u128) usize {
     var houses: usize = 0;
-    var removed = @as(u128, ALL81) ^ keep;
+    var removed = @as(u128, ALL_CELLS) ^ keep;
     while (removed > 0) : (removed &= removed - 1) {
         houses |= HOUSE_INDEXES[@ctz(removed)];
     }
@@ -409,7 +409,7 @@ fn houses_of_removed_cells(keep: u128) usize {
     return houses;
 }
 
-fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
+fn generateReductionTables() struct { [9][512]u128, [108]u128 } {
     @setEvalBranchQuota(1000000);
     var row_lookup: [9][512]u128 = .{.{0} ** 512} ** 9;
     var clear_masks: [108]u128 = undefined;
@@ -424,13 +424,13 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
         for (first_row..first_row + 3) |row| {
             // Pattern A: Digit confined to row within box → clear row outside box
             // Pattern B: Digit confined to box within row → clear box outside row
-            const pattern_a = (ALL81 ^ HOUSE_CELLS[row]) | HOUSE_CELLS[box + 18];
-            const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
-            update_row_board_clears(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
+            const pattern_a = (ALL_CELLS ^ HOUSE_CELLS[row]) | HOUSE_CELLS[box + 18];
+            const pattern_b = (ALL_CELLS ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[row];
+            updateRowReductions(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
             // Pack the removed-cells house mask into spare bits 81-107 so the
             // apply loop derives both the cell mask and the houses from one load.
-            clear_masks[forward_index] = pattern_b | @as(u128, houses_of_removed_cells(pattern_b)) << 81;
-            clear_masks[reverse_index] = pattern_a | @as(u128, houses_of_removed_cells(pattern_a)) << 81;
+            clear_masks[forward_index] = pattern_b | @as(u128, housesOfRemovedCells(pattern_b)) << 81;
+            clear_masks[reverse_index] = pattern_a | @as(u128, housesOfRemovedCells(pattern_a)) << 81;
             forward_index += 1;
             reverse_index += 1;
         }
@@ -439,13 +439,13 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
         for (first_col..first_col + 3) |col| {
             // Pattern A: Digit confined to col within box → clear col outside box
             // Pattern B: Digit confined to box within col → clear box outside col
-            const pattern_a = (ALL81 ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
-            const pattern_b = (ALL81 ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
-            update_row_board_clears(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
+            const pattern_a = (ALL_CELLS ^ HOUSE_CELLS[col + 9]) | HOUSE_CELLS[box + 18];
+            const pattern_b = (ALL_CELLS ^ HOUSE_CELLS[box + 18]) | HOUSE_CELLS[col + 9];
+            updateRowReductions(&row_lookup, forward_index, reverse_index, pattern_a, pattern_b);
             // Pack the removed-cells house mask into spare bits 81-107 so the
             // apply loop derives both the cell mask and the houses from one load.
-            clear_masks[forward_index] = pattern_b | @as(u128, houses_of_removed_cells(pattern_b)) << 81;
-            clear_masks[reverse_index] = pattern_a | @as(u128, houses_of_removed_cells(pattern_a)) << 81;
+            clear_masks[forward_index] = pattern_b | @as(u128, housesOfRemovedCells(pattern_b)) << 81;
+            clear_masks[reverse_index] = pattern_a | @as(u128, housesOfRemovedCells(pattern_a)) << 81;
             forward_index += 1;
             reverse_index += 1;
         }
@@ -453,13 +453,13 @@ fn generate_row_based_board_clears() struct { [9][512]u128, [108]u128 } {
     return .{ row_lookup, clear_masks };
 }
 
-const ROW_BASED_BOARD_CLEARS = generate_row_based_board_clears();
+const REDUCTION_TABLES = generateReductionTables();
 
-/// ROW_BOARD_CLEARS[row][row_candidates] = bitmask of applicable reduction patterns
-pub const ROW_BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[0];
+/// ROW_REDUCTION_PATTERNS[row][row_candidates] = bitmask of applicable reduction patterns
+pub const ROW_REDUCTION_PATTERNS = REDUCTION_TABLES[0];
 
-/// BOARD_CLEARS[pattern_index] = cell mask to apply when reduction pattern matches
-pub const BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[1];
+/// REDUCTION_MASKS[pattern_index] = cell mask to apply when reduction pattern matches
+pub const REDUCTION_MASKS = REDUCTION_TABLES[1];
 
 // =============================================================================
 // BAND PATTERN COMPATIBILITY
@@ -477,7 +477,7 @@ pub const BOARD_CLEARS = ROW_BASED_BOARD_CLEARS[1];
 
 /// PATTERNS_FOR_OTHER_DIGITS[p] = patterns that share no cells with pattern p
 /// Reserves space: if digit D uses pattern p, other digits can only use these patterns
-fn generate_digit_compatible_bands() [162]u192 {
+fn generatePatternsForOtherDigits() [162]u192 {
     @setEvalBranchQuota(100000);
     var compat: [162]u192 = undefined;
 
@@ -494,11 +494,11 @@ fn generate_digit_compatible_bands() [162]u192 {
     return compat;
 }
 
-pub const PATTERNS_FOR_OTHER_DIGITS = generate_digit_compatible_bands();
+pub const PATTERNS_FOR_OTHER_DIGITS = generatePatternsForOtherDigits();
 
 /// PATTERNS_FOR_SAME_DIGIT[p] = patterns that use completely different columns
 /// Column constraint: a digit's 3 band patterns must cover disjoint column sets
-fn generate_board_compatible_bands() [162]u192 {
+fn generatePatternsForSameDigit() [162]u192 {
     @setEvalBranchQuota(100000);
     var compat: [162]u192 = undefined;
 
@@ -519,4 +519,4 @@ fn generate_board_compatible_bands() [162]u192 {
     return compat;
 }
 
-pub const PATTERNS_FOR_SAME_DIGIT = generate_board_compatible_bands();
+pub const PATTERNS_FOR_SAME_DIGIT = generatePatternsForSameDigit();

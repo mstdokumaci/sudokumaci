@@ -8,10 +8,7 @@ const assert = std.debug.assert;
 const constants = @import("constants.zig");
 
 // Bitmasks representing "all" bits set for different sizes
-const ALL_9_DIGITS: usize = 0b111111111; // Bits 0-8 set (9 digits)
-const ALL_27_HOUSES: usize = constants.ALL27; // Bits for 27 houses (9 rows + 9 cols + 9 boxes)
-const ALL_81_CELLS: u128 = constants.ALL81; // Bits for 81 cells
-const ALL_162_PATTERNS: u192 = constants.ALL162; // Bits for 162 valid band patterns
+const ALL_DIGITS: usize = 0b111111111; // Bits 0-8 set (9 digits)
 
 // Single-bit masks
 const BIT9 = constants.BIT9; // BIT9[i] = 1 << i for i in 0..8
@@ -26,8 +23,8 @@ const CLEAR_HOUSE_INDEXES = constants.CLEAR_HOUSE_INDEXES; // Mask to clear hous
 // Band pattern tables
 const VALID_BAND_CELLS = constants.VALID_BAND_CELLS; // 162 valid digit placements per band
 const ROW_BANDS = constants.ROW_BANDS; // Row mask → compatible band patterns
-const BOARD_CLEARS = constants.BOARD_CLEARS; // Box-line reduction masks
-const ROW_BOARD_CLEARS = constants.ROW_BOARD_CLEARS; // Row mask → applicable reductions
+const REDUCTION_MASKS = constants.REDUCTION_MASKS; // Box-line reduction masks
+const ROW_REDUCTION_PATTERNS = constants.ROW_REDUCTION_PATTERNS; // Row mask → applicable reductions
 const PATTERNS_FOR_OTHER_DIGITS = constants.PATTERNS_FOR_OTHER_DIGITS; // Non-overlapping band patterns
 const PATTERNS_FOR_SAME_DIGIT = constants.PATTERNS_FOR_SAME_DIGIT; // Column-compatible band patterns
 
@@ -39,8 +36,8 @@ const ASCII_ONE: u8 = '1'; // = 49
 const ROW_MASK: u128 = 0b111111111; // 9 bits for one row
 const BITS_PER_ROW: u7 = 9;
 
-// Board clears pattern mask (54 bits for forward patterns, 54 for reverse)
-const BOARD_CLEARS_HALF_MASK: u128 = (1 << 54) - 1;
+// Pattern split mask: 54 forward patterns, 54 reverse
+const FORWARD_PATTERNS_MASK: u128 = (1 << 54) - 1;
 
 // Sentinel returned when a puzzle has no solution
 const INVALID_DIGIT_INDEX: usize = 9;
@@ -55,27 +52,27 @@ inline fn getRowMask(cells: u128, row_index: usize) u9 {
 }
 
 /// Finds every box-line reduction pattern that matches the current candidates.
-/// Intersects ROW_BOARD_CLEARS over all 9 rows, so a pattern survives only
+/// Intersects ROW_REDUCTION_PATTERNS over all 9 rows, so a pattern survives only
 /// if each row's candidate mask allows it.
-inline fn getMatchingBoardClears(candidate_cells: u128) u128 {
-    return ROW_BOARD_CLEARS[0][getRowMask(candidate_cells, 0)] &
-        ROW_BOARD_CLEARS[1][getRowMask(candidate_cells, 1)] &
-        ROW_BOARD_CLEARS[2][getRowMask(candidate_cells, 2)] &
-        ROW_BOARD_CLEARS[3][getRowMask(candidate_cells, 3)] &
-        ROW_BOARD_CLEARS[4][getRowMask(candidate_cells, 4)] &
-        ROW_BOARD_CLEARS[5][getRowMask(candidate_cells, 5)] &
-        ROW_BOARD_CLEARS[6][getRowMask(candidate_cells, 6)] &
-        ROW_BOARD_CLEARS[7][getRowMask(candidate_cells, 7)] &
-        ROW_BOARD_CLEARS[8][getRowMask(candidate_cells, 8)];
+inline fn getMatchingReductions(candidate_cells: u128) u128 {
+    return ROW_REDUCTION_PATTERNS[0][getRowMask(candidate_cells, 0)] &
+        ROW_REDUCTION_PATTERNS[1][getRowMask(candidate_cells, 1)] &
+        ROW_REDUCTION_PATTERNS[2][getRowMask(candidate_cells, 2)] &
+        ROW_REDUCTION_PATTERNS[3][getRowMask(candidate_cells, 3)] &
+        ROW_REDUCTION_PATTERNS[4][getRowMask(candidate_cells, 4)] &
+        ROW_REDUCTION_PATTERNS[5][getRowMask(candidate_cells, 5)] &
+        ROW_REDUCTION_PATTERNS[6][getRowMask(candidate_cells, 6)] &
+        ROW_REDUCTION_PATTERNS[7][getRowMask(candidate_cells, 7)] &
+        ROW_REDUCTION_PATTERNS[8][getRowMask(candidate_cells, 8)];
 }
 
 /// Intersects the per-row pattern tables for one band.
 /// band_start_row is the band's first row: 0, 3, or 6.
-inline fn getValidBandPatterns(candidate_cells: u128, band_start_row: usize, existing_constraints: u192) u192 {
+inline fn getValidBandPatterns(candidate_cells: u128, band_start_row: usize, available_patterns: u192) u192 {
     return ROW_BANDS[0][getRowMask(candidate_cells, band_start_row)] &
         ROW_BANDS[1][getRowMask(candidate_cells, band_start_row + 1)] &
         ROW_BANDS[2][getRowMask(candidate_cells, band_start_row + 2)] &
-        existing_constraints;
+        available_patterns;
 }
 
 /// Standard bit iteration: clears lowest set bit
@@ -99,19 +96,19 @@ inline fn housesOf(cells: u128) usize {
 
 pub const Sudoku = struct {
     /// Bitmask of digits (0-8) that haven't been fully placed yet
-    pending_digits: usize = ALL_9_DIGITS,
+    pending_digits: usize = ALL_DIGITS,
 
     /// For each digit, a bitmask of cells where that digit could still go
-    digit_candidate_cells: [9]u128 = .{ALL_81_CELLS} ** 9,
+    digit_candidate_cells: [9]u128 = .{constants.ALL_CELLS} ** 9,
 
     /// For each digit, a bitmask of houses (rows/cols/boxes) where that digit still needs placement
-    pending_digit_houses: [9]usize = .{ALL_27_HOUSES} ** 9,
+    pending_digit_houses: [9]usize = .{constants.ALL_HOUSES} ** 9,
 
     /// Resets the solver state for a new puzzle
     pub fn reset(self: *Sudoku) void {
-        self.pending_digits = ALL_9_DIGITS;
-        self.digit_candidate_cells = .{ALL_81_CELLS} ** 9;
-        self.pending_digit_houses = .{ALL_27_HOUSES} ** 9;
+        self.pending_digits = ALL_DIGITS;
+        self.digit_candidate_cells = .{constants.ALL_CELLS} ** 9;
+        self.pending_digit_houses = .{constants.ALL_HOUSES} ** 9;
     }
 
     /// Main entry point: solves a puzzle and writes the solution to `out`.
@@ -139,7 +136,7 @@ pub const Sudoku = struct {
         // ─────────────────────────────────────────────────────────────────────
         const most_constrained_digit = self.propagateConstraints(initial_placements);
         assert(most_constrained_digit < INVALID_DIGIT_INDEX);
-        assert(self.searchValidBands(most_constrained_digit, .{ALL_162_PATTERNS} ** 3));
+        assert(self.searchValidBands(most_constrained_digit, .{constants.ALL_PATTERNS} ** 3));
 
         // ─────────────────────────────────────────────────────────────────────
         // PHASE 3: Convert bitboards to string output
@@ -175,22 +172,22 @@ pub const Sudoku = struct {
 
         // Digits fully placed (removed from pending_digits) never enter the
         // loop below, but their candidates still block other digits.
-        var prefix: u128 = 0;
-        var placed_digits = ALL_9_DIGITS ^ self.pending_digits;
+        var digit_union_prefix: u128 = 0;
+        var placed_digits = ALL_DIGITS ^ self.pending_digits;
         while (placed_digits > 0) : (placed_digits = clearLowestBit(placed_digits)) {
-            prefix |= self.digit_candidate_cells[@ctz(placed_digits)];
+            digit_union_prefix |= self.digit_candidate_cells[@ctz(placed_digits)];
         }
 
-        // ── suffix[i] = OR of digit_candidate_cells[j] for j >= i at call entry ──
+        // ── digit_union_suffix[i] = OR of digit_candidate_cells[j] for j >= i at call entry ──
         // Digits run in ascending order, and each mutates only its own
-        // candidates. At digit i the other digits' candidate union is
-        // (prefix: processed digits, post-mutation) | (suffix[i+1]:
-        // unprocessed digits, entry state), so suffix is snapshotted
-        // before the loop.
-        var suffix: [10]u128 = .{0} ** 10;
+        // candidates. For digit i the other digits' candidate union is
+        // digit_union_prefix (digits 0..i-1, post-mutation) |
+        // digit_union_suffix[i+1] (digits i+1..8, entry state), so the
+        // array is snapshotted before the loop.
+        var digit_union_suffix: [10]u128 = .{0} ** 10;
         var i: usize = 9;
         while (i > 0) : (i -= 1) {
-            suffix[i - 1] = suffix[i] | self.digit_candidate_cells[i - 1];
+            digit_union_suffix[i - 1] = digit_union_suffix[i] | self.digit_candidate_cells[i - 1];
         }
 
         // Union of all placements this call.
@@ -235,16 +232,16 @@ pub const Sudoku = struct {
                     // Step 2: Find hidden singles
                     // Cells that are candidates for this digit but no other digit
                     // ─────────────────────────────────────────────────────────
-                    var unique_cells = candidates.* & ~(prefix | suffix[digit + 1]);
+                    var unique_cells = candidates.* & ~(digit_union_prefix | digit_union_suffix[digit + 1]);
                     while (unique_cells > 0) : (unique_cells = clearLowestBit(unique_cells)) {
                         const cell = @ctz(unique_cells);
                         const houses_after_placement = self.pending_digit_houses[digit] & CLEAR_HOUSE_INDEXES[cell];
                         if (houses_after_placement != self.pending_digit_houses[digit]) {
                             // Hidden single: this cell must hold this digit
-                            const before = candidates.*;
+                            const candidates_before = candidates.*;
                             self.pending_digit_houses[digit] = houses_after_placement;
                             candidates.* &= CLEAR_HOUSES[cell];
-                            touched_houses |= housesOf(before ^ candidates.*);
+                            touched_houses |= housesOf(candidates_before ^ candidates.*);
                             discovered_placements[digit] |= unique_cells;
                             found_new_placements = true;
                         }
@@ -256,9 +253,9 @@ pub const Sudoku = struct {
                     if (candidate_count < 40) {
                         while (true) {
                             // Find patterns that match the current candidate configuration
-                            var matching_patterns = getMatchingBoardClears(candidates.*);
+                            var matching_patterns = getMatchingReductions(candidates.*);
                             // Remove patterns that cancel out (pattern + reverse both match)
-                            const forward_patterns = matching_patterns & BOARD_CLEARS_HALF_MASK;
+                            const forward_patterns = matching_patterns & FORWARD_PATTERNS_MASK;
                             const reverse_patterns = matching_patterns >> 54;
                             const non_canceling = forward_patterns ^ reverse_patterns;
                             matching_patterns &= (non_canceling << 54) | non_canceling;
@@ -268,9 +265,9 @@ pub const Sudoku = struct {
                                 // One load does double duty: bits 0-80 are the
                                 // keep-mask (AND ignores bits 81+), bits 81-107
                                 // hold the houses of the removed cells.
-                                const clear = BOARD_CLEARS[@ctz(matching_patterns)];
-                                candidates.* &= clear;
-                                touched_houses |= @as(usize, @truncate(clear >> 81));
+                                const reduction_mask = REDUCTION_MASKS[@ctz(matching_patterns)];
+                                candidates.* &= reduction_mask;
+                                touched_houses |= @as(usize, @truncate(reduction_mask >> 81));
                             }
                         }
                     }
@@ -313,7 +310,7 @@ pub const Sudoku = struct {
 
             // Include this digit's final candidates so later digits see its
             // post-mutation state
-            prefix |= self.digit_candidate_cells[digit];
+            digit_union_prefix |= self.digit_candidate_cells[digit];
         }
 
         // Recurse if new placements were discovered, otherwise return best digit for search
