@@ -248,27 +248,25 @@ pub const Sudoku = struct {
                     }
 
                     // ─────────────────────────────────────────────────────────
-                    // Step 3: Box-line reduction (only when candidates are sparse)
+                    // Step 3: Box-line reduction
                     // ─────────────────────────────────────────────────────────
-                    if (candidate_count < 40) {
-                        while (true) {
-                            // Find patterns that match the current candidate configuration
-                            var matching_patterns = getMatchingReductions(candidates.*);
-                            // Remove patterns that cancel out (pattern + reverse both match)
-                            const forward_patterns = matching_patterns & FORWARD_PATTERNS_MASK;
-                            const reverse_patterns = matching_patterns >> 54;
-                            const non_canceling = forward_patterns ^ reverse_patterns;
-                            matching_patterns &= (non_canceling << 54) | non_canceling;
+                    while (true) {
+                        // Find patterns that match the current candidate configuration
+                        var matching_patterns = getMatchingReductions(candidates.*);
+                        // Remove patterns that cancel out (pattern + reverse both match)
+                        const forward_patterns = matching_patterns & FORWARD_PATTERNS_MASK;
+                        const reverse_patterns = matching_patterns >> 54;
+                        const non_canceling = forward_patterns ^ reverse_patterns;
+                        matching_patterns &= (non_canceling << 54) | non_canceling;
 
-                            if (matching_patterns == 0) break;
-                            while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
-                                // One load does double duty: bits 0-80 are the
-                                // keep-mask (AND ignores bits 81+), bits 81-107
-                                // hold the houses of the removed cells.
-                                const reduction_mask = REDUCTION_MASKS[@ctz(matching_patterns)];
-                                candidates.* &= reduction_mask;
-                                touched_houses |= @as(usize, @truncate(reduction_mask >> 81));
-                            }
+                        if (matching_patterns == 0) break;
+                        while (matching_patterns > 0) : (matching_patterns = clearLowestBit(matching_patterns)) {
+                            // One load does double duty: bits 0-80 are the
+                            // keep-mask (AND ignores bits 81+), bits 81-107
+                            // hold the houses of the removed cells.
+                            const reduction_mask = REDUCTION_MASKS[@ctz(matching_patterns)];
+                            candidates.* &= reduction_mask;
+                            touched_houses |= @as(usize, @truncate(reduction_mask >> 81));
                         }
                     }
 
