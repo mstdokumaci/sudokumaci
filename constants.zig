@@ -384,7 +384,7 @@ fn updateRowReductions(
         } else {
             max_row_mask = pattern_b_row;
         }
-        for (1..max_row_mask) |candidates| {
+        for (1..max_row_mask + 1) |candidates| {
             if (pattern_a_row & candidates == candidates) {
                 table[row][candidates] |= @as(u128, 1) << @intCast(forward_idx);
             }
